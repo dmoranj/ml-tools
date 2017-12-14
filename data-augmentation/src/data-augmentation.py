@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import numpy as np
+from skimage import transform as trans
+from skimage.util import crop
 import matplotlib.image as mpimg
 import argparse
 import os
@@ -63,12 +65,23 @@ def saveModification(originalImage, outputFolder, key, modifiedFile):
     filename = createName(originalImage, outputFolder, key)
     mpimg.imsave(filename, modifiedFile)
 
+def slightRotation(img, degrees):
+    height = img.shape[0]
+    width = img.shape[1]
+    channels = img.shape[2]
+    rotation = trans.rotate(img, degrees)
+    margin = np.ceil((img.shape[0] * np.pi * (degrees % 90))/360)
+    rotation = crop(rotation, ((margin, margin), (margin, margin), (0, 0)))
+    rotation = trans.resize(rotation, (height, width, channels))
+    return rotation
+
 def dataAugmentImage(image, outputFolder):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
     img = mpimg.imread(image)
     imageList = [
         img,
         mirroring(img),
+        slightRotation(img, 8),
         toneModifications(img, (1.1, 0.9, 1.1, 1.0))
     ]
 
