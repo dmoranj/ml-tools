@@ -93,10 +93,8 @@ def dataAugmentImage(image, outputFolder):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
     img = mpimg.imread(image)
     imageList = [
-        img
-    #    mirroring(img),
-    #    slightRotation(img, 8),
-    #    toneModifications(img, (1.1, 0.9, 1.1, 1.0))
+        img,
+        mirroring(img)
     ]
 
     rotations = [
@@ -106,7 +104,18 @@ def dataAugmentImage(image, outputFolder):
         lambda i: slightRotation(i, -18)
     ]
 
-    imageList = applyTransformations(imageList, [rotations])
+    tones = [
+        lambda i: toneModifications(i, (1.1, 0.9, 1.1, 1.0)),
+        lambda i: toneModifications(i, (0.9, 1.1, 1.1, 1.0)),
+        lambda i: toneModifications(i, (1.1, 1.1, 0.9, 1.0)),
+        lambda i: toneModifications(i, (0.9, 0.9, 0.9, 1.0)),
+        lambda i: toneModifications(i, (1.1, 1.1, 1.1, 1.0)),
+        lambda i: toneModifications(i, (0.8, 0.8, 0.8, 1.0)),
+        lambda i: toneModifications(i, (1.2, 1.2, 1.2, 1.0)),
+        lambda i: toneModifications(i, (0.8, 1.2, 0.9, 1.0)),
+    ]
+
+    imageList = applyTransformations(imageList, [rotations, tones])
 
     for key, modification in enumerate(imageList):
         saveModification(image, outputFolder, key, modification)
