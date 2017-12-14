@@ -1,5 +1,8 @@
+#!/usr/bin/env python
 
 import argparse
+
+DEFAULT_OUTPUT_PATH='./results/augmented'
 
 def generateDescription():
     return """
@@ -14,10 +17,18 @@ def generateDescription():
         
         The modifications are applied in a cascade-style (i.e.: each type of modification is applied to each of the
         images that resulted from the previous one) so the total number of new images per original image is 320. 
+        
+        The data-agumentation process will perform recursively in the provided directory, and the generated results
+        folder will replicate the structure of the original.
+        
+        All the unmodified images will be also copied to the destination location.
     """
+
 def defineParser():
     parser = argparse.ArgumentParser(description=generateDescription())
     parser.add_argument('imagePath', type=str, help='Path to the data directory')
+    parser.add_argument('--output', dest='out', type=str, default=DEFAULT_OUTPUT_PATH,
+                        help='Output directory for the cropped images')
     parser.add_argument('--outputRes', dest='outputRes', type=str,
                         help='Output resolution of the cropped images')
 
@@ -30,3 +41,4 @@ def start():
     args = defineParser().parse_args()
     dataAugment(args.imagePath, args)
 
+start()
