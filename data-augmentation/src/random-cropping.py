@@ -1,19 +1,21 @@
 #!/usr/bin/env python
-import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 import argparse
+from PIL import Image, ExifTags
 import os
 import glob
 from skimage import transform as trans
 
 DEFAULT_NUM_CROPS=10
 
-DEFAULT_HEIGHT=40
-DEFAULT_WIDTH=40
-DEFAULT_VARIANCE=20
+DEFAULT_HEIGHT = 40
+DEFAULT_WIDTH = 40
+DEFAULT_VARIANCE = 20
+DEFAULT_OUTPUT_PATH = './results'
 
-CANDIDATE_FOLDER='candidates'
+CANDIDATE_FOLDER = 'candidates'
+DATA_FOLDER = 'data'
 
 def generateDescription():
     return """
@@ -40,7 +42,7 @@ def defineParser():
                         help='Mean width of the cropped segment (percentage)')
     parser.add_argument('--variance', dest='var', type=float, default=DEFAULT_VARIANCE,
                         help='Variance for the random cropping size distribution')
-    parser.add_argument('--output', dest='out', type=str, default='./data',
+    parser.add_argument('--output', dest='out', type=str, default=DEFAULT_OUTPUT_PATH,
                         help='Output directory for the cropped images')
     parser.add_argument('--aspect', dest='aspect', type=str,
                         help='Aspect ratio of the cropping frame')
@@ -62,6 +64,11 @@ def createOutputStructure(outputPath):
 
     if not os.path.exists(candidateFolder):
         os.mkdir(candidateFolder)
+
+    dataFolder = os.path.join(outputPath, DATA_FOLDER)
+
+    if not os.path.exists(dataFolder):
+        os.mkdir(dataFolder)
 
 def createCropFrame(shape, cropParams):
     randomVariation = np.clip(np.random.normal(1, cropParams['var'], (2, 1)), 0.5, 1.5)
@@ -92,7 +99,7 @@ def createCropName(image, outputPath, index):
 
     nameParts = image.split("/")
 
-    return os.path.join(outputPath, str(index) + "_" + nameParts[-1]).replace(".jpg", ".png")
+    return os.path.join(outputPath, str(index) + "_" + nameParts[-1])
 
 def cropImage(image, inputPath, outputPath, cropParams):
     print('Cropping image ' + image)
@@ -109,6 +116,33 @@ def cropImage(image, inputPath, outputPath, cropParams):
 
         mpimg.imsave(cropName, newImage)
 
+def createPngImage(image):
+    im = Image.open(image)
+
+    try:
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation]=='Orientation':
+                break
+
+        exif = dict(im._getexif())
+
+        if exif[orientation] == 3:
+            im = im.rotate(180, expand=True)
+        elif exif[orientation] == 6:
+            im = im.rotate(270, expand=True)
+        elif exif[orientation] == 8:
+            im = im.rotate(90, expand=True)
+
+    except (AttributeError, KeyError, IndexError):
+        print('EXIF information not found for "' + image + '"')
+
+
+    imageName = image.replace("jpg", "png")
+    im.save(imageName, "PNG")
+    im.close()
+
+    return imageName
+
 
 def randomCrop(inputPath, outputPath, cropParams):
     imageList = getImageList(inputPath)
@@ -116,7 +150,12 @@ def randomCrop(inputPath, outputPath, cropParams):
     createOutputStructure(outputPath)
 
     for image in imageList:
-        cropImage(image, inputPath, os.path.join(outputPath, CANDIDATE_FOLDER), cropParams)
+        imageName = image
+
+        if imageName.find('.jpg') > 0:
+            imageName = createPngImage(image)
+
+        cropImage(imageName, inputPath, os.path.join(outputPath, CANDIDATE_FOLDER), cropParams)
 
 def readAspect(aspect):
     if aspect:
