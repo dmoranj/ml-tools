@@ -6,6 +6,8 @@ from PIL import Image, ExifTags
 import os
 import glob
 from skimage import transform as trans
+from fileutils import readAspect
+from fileutils import readResolution
 from fileutils import createName
 
 DEFAULT_NUM_CROPS=10
@@ -107,7 +109,7 @@ def cropImage(image, inputPath, outputPath, cropParams):
         cropName = createName(image, outputPath, i)
 
         if cropParams['outputRes']:
-            newShape = (cropParams['outputRes'][0], cropParams['outputRes'][1], newImage.shape[2])
+            newShape = (cropParams['outputRes'][1], cropParams['outputRes'][0], newImage.shape[2])
             newImage = trans.resize(newImage, newShape)
 
         mpimg.imsave(cropName, newImage)
@@ -152,21 +154,6 @@ def randomCrop(inputPath, outputPath, cropParams):
             imageName = createPngImage(image)
 
         cropImage(imageName, inputPath, os.path.join(outputPath, CANDIDATE_FOLDER), cropParams)
-
-def readAspect(aspect):
-    if aspect:
-        components = [int(x) for x in aspect.split(":")]
-        ratio = float(components[1])/float(components[0])
-        return ratio
-    else:
-        return None
-
-def readResolution(resolution):
-    if resolution:
-        components = [int(x) for x in resolution.split("x")]
-        return components
-    else:
-        return None
 
 def start():
     args = defineParser().parse_args()

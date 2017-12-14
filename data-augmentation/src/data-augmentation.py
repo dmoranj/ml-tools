@@ -9,6 +9,7 @@ import os
 import re
 import glob
 from fileutils import createName
+from fileutils import readResolution
 
 DEFAULT_OUTPUT_PATH='./results/augmented'
 
@@ -89,7 +90,7 @@ def applyTransformations(imageList, transformationTypes):
 
     return results
 
-def dataAugmentImage(image, outputFolder):
+def dataAugmentImage(image, outputFolder, augmentOptions):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
     img = mpimg.imread(image)
     imageList = [
@@ -118,17 +119,24 @@ def dataAugmentImage(image, outputFolder):
     imageList = applyTransformations(imageList, [rotations, tones])
 
     for key, modification in enumerate(imageList):
-        saveModification(image, outputFolder, key, modification)
+        targetImage = modification
+
+        if augmentOptions['outputRes']:
+            resolution = readResolution(augmentOptions['outputRes'])
+            newShape = (resolution[1], resolution[0], targetImage.shape[2])
+            targetImage = trans.resize(targetImage, newShape)
+
+        saveModification(image, outputFolder, key, targetImage)
 
 
 def dataAugmentFolder(originalPath, folder, augmentOptions):
     originFolder = os.path.join(originalPath, folder)
-    outputFolder = os.path.join(augmentOptions.out, folder)
+    outputFolder = os.path.join(augmentOptions['out'], folder)
 
     imageList = getImageList(originFolder)
 
     for image in imageList:
-        dataAugmentImage(image, outputFolder)
+        dataAugmentImage(image, outputFolder, augmentOptions)
 
 def createFolderStructure(outputPath, subfolders):
     if not os.path.exists(outputPath):
@@ -145,8 +153,13 @@ def dataAugment(imagePath, augmentOptions):
 
     createFolderStructure(augmentOptions.out, subfolders)
 
+    options = {
+        'outputRes': augmentOptions.outputRes,
+        'out': augmentOptions.out
+    }
+
     for folder in subfolders:
-        dataAugmentFolder(imagePath, folder, augmentOptions)
+        dataAugmentFolder(imagePath, folder, options)
 
 
 def start():
