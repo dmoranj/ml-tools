@@ -70,20 +70,43 @@ def slightRotation(img, degrees):
     width = img.shape[1]
     channels = img.shape[2]
     rotation = trans.rotate(img, degrees)
-    margin = np.ceil((img.shape[0] * np.pi * (degrees % 90))/360)
+    margin = np.ceil(np.abs((img.shape[0] * np.pi * degrees)/360))/2
     rotation = crop(rotation, ((margin, margin), (margin, margin), (0, 0)))
     rotation = trans.resize(rotation, (height, width, channels))
     return rotation
+
+def applyTransformations(imageList, transformationTypes):
+    results = imageList
+
+    for transformationList in transformationTypes:
+        workingSet = results
+
+        for image in results:
+            newImages = [f(image) for f in transformationList]
+            workingSet = workingSet + newImages
+
+        results = workingSet
+
+    return results
 
 def dataAugmentImage(image, outputFolder):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
     img = mpimg.imread(image)
     imageList = [
-        img,
-        mirroring(img),
-        slightRotation(img, 8),
-        toneModifications(img, (1.1, 0.9, 1.1, 1.0))
+        img
+    #    mirroring(img),
+    #    slightRotation(img, 8),
+    #    toneModifications(img, (1.1, 0.9, 1.1, 1.0))
     ]
+
+    rotations = [
+        lambda i: slightRotation(i, 8),
+        lambda i: slightRotation(i, -8),
+        lambda i: slightRotation(i, 18),
+        lambda i: slightRotation(i, -18)
+    ]
+
+    imageList = applyTransformations(imageList, [rotations])
 
     for key, modification in enumerate(imageList):
         saveModification(image, outputFolder, key, modification)
