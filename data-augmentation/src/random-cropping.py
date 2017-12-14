@@ -5,12 +5,13 @@ import numpy as np
 import argparse
 import os
 import glob
+from skimage import transform as trans
 
 DEFAULT_NUM_CROPS=10
 
 DEFAULT_HEIGHT=40
 DEFAULT_WIDTH=40
-DEFAULT_VARIANCE=10
+DEFAULT_VARIANCE=20
 
 CANDIDATE_FOLDER='candidates'
 
@@ -21,7 +22,7 @@ def generateDescription():
         
         The tool lets the user tune the general parameters of the random cropping, so to maximize the possibility
         of generating cropped images that are interesting for the task at hand. It will also help in making the
-        dataset homogeneos, by down or upsizing each of the cropped segments to a predetermined size.
+        dataset homogeneous, by down or upsizing each of the cropped segments to a predetermined size if required.
         
         The cropping tool will generate an output directory (defaulting to "/data") whith a subfolder "/candidates"
         containing all the cropped images.
@@ -43,6 +44,10 @@ def defineParser():
                         help='Output directory for the cropped images')
     parser.add_argument('--aspect', dest='aspect', type=str,
                         help='Aspect ratio of the cropping frame')
+    parser.add_argument('--crops', dest='crops', type=int, default=DEFAULT_NUM_CROPS,
+                        help='Number of crops to create for each image')
+    parser.add_argument('--outputRes', dest='outputRes', type=str,
+                        help='Output resolution of the cropped images')
 
     return parser
 
@@ -93,10 +98,15 @@ def cropImage(image, inputPath, outputPath, cropParams):
     print('Cropping image ' + image)
     img = mpimg.imread(image)
 
-    for i in range(DEFAULT_NUM_CROPS):
+    for i in range(cropParams['crops']):
         cropFrame = createCropFrame(img.shape, cropParams)
         newImage = cropImageWithFrame(img, cropFrame)
         cropName = createCropName(image, outputPath, i)
+
+        if cropParams['outputRes']:
+            newShape = (cropParams['outputRes'][0], cropParams['outputRes'][1], newImage.shape[2])
+            newImage = trans.resize(newImage, newShape)
+
         mpimg.imsave(cropName, newImage)
 
 
@@ -116,14 +126,23 @@ def readAspect(aspect):
     else:
         return None
 
+def readResolution(resolution):
+    if resolution:
+        components = [int(x) for x in resolution.split("x")]
+        return components
+    else:
+        return None
+
 def start():
     args = defineParser().parse_args()
 
     cropParams = {
         "height": args.height/100,
         "width": args.width/100,
-        "var": args.var,
-        "aspect": readAspect(args.aspect)
+        "var": args.var/100,
+        "aspect": readAspect(args.aspect),
+        "crops": args.crops,
+        "outputRes": readResolution(args.outputRes)
     }
 
     randomCrop(args.imagePath, args.out, cropParams)
