@@ -6,6 +6,7 @@ from PIL import Image, ExifTags
 import os
 import glob
 from skimage import transform as trans
+from fileutils import createName
 
 DEFAULT_NUM_CROPS=10
 
@@ -95,11 +96,6 @@ def cropImageWithFrame(img, frame):
 
     return newImage
 
-def createCropName(image, outputPath, index):
-
-    nameParts = image.split("/")
-
-    return os.path.join(outputPath, str(index) + "_" + nameParts[-1])
 
 def cropImage(image, inputPath, outputPath, cropParams):
     print('Cropping image ' + image)
@@ -108,7 +104,7 @@ def cropImage(image, inputPath, outputPath, cropParams):
     for i in range(cropParams['crops']):
         cropFrame = createCropFrame(img.shape, cropParams)
         newImage = cropImageWithFrame(img, cropFrame)
-        cropName = createCropName(image, outputPath, i)
+        cropName = createName(image, outputPath, i)
 
         if cropParams['outputRes']:
             newShape = (cropParams['outputRes'][0], cropParams['outputRes'][1], newImage.shape[2])

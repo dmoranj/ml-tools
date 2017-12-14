@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
+import numpy as np
+import matplotlib.image as mpimg
 import argparse
 import os
 import re
 import glob
+from fileutils import createName
 
 DEFAULT_OUTPUT_PATH='./results/augmented'
 
@@ -43,8 +46,35 @@ def getSubfolders(path):
 def getImageList(folder):
     return glob.glob(os.path.join(folder, "*.png"))
 
+def mirroring(image):
+    return np.fliplr(image)
+
+def toneModifications(img, rgb):
+    modification = [np.full((img.shape[0], img.shape[1]), x) for x in rgb]
+
+    toneMask = np.zeros(img.shape)
+
+    for i in range(4):
+        toneMask[:, :, i] = modification[i]
+
+    return np.clip(img * toneMask, 0, 1)
+
+def saveModification(originalImage, outputFolder, key, modifiedFile):
+    filename = createName(originalImage, outputFolder, key)
+    mpimg.imsave(filename, modifiedFile)
+
 def dataAugmentImage(image, outputFolder):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
+    img = mpimg.imread(image)
+    imageList = [
+        img,
+        mirroring(img),
+        toneModifications(img, (1.1, 0.9, 1.1, 1.0))
+    ]
+
+    for key, modification in enumerate(imageList):
+        saveModification(image, outputFolder, key, modification)
+
 
 def dataAugmentFolder(originalPath, folder, augmentOptions):
     originFolder = os.path.join(originalPath, folder)
@@ -55,10 +85,22 @@ def dataAugmentFolder(originalPath, folder, augmentOptions):
     for image in imageList:
         dataAugmentImage(image, outputFolder)
 
-def dataAugment(imagePath, augmentOptions):
-    subfolderList = getSubfolders(imagePath)
+def createFolderStructure(outputPath, subfolders):
+    if not os.path.exists(outputPath):
+        os.mkdir(outputPath)
 
-    for folder in subfolderList:
+    for folder in subfolders:
+        outputFolder = os.path.join(outputPath, folder)
+
+        if not os.path.exists(outputFolder):
+            os.mkdir(outputFolder)
+
+def dataAugment(imagePath, augmentOptions):
+    subfolders = getSubfolders(imagePath)
+
+    createFolderStructure(augmentOptions.out, subfolders)
+
+    for folder in subfolders:
         dataAugmentFolder(imagePath, folder, augmentOptions)
 
 

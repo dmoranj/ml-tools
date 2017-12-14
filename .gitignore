@@ -4,3 +4,4 @@ ill-examples/
 data-augmentation/src/data/
 out/
 results/
+__pycache__
