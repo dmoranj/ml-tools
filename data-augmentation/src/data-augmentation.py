@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
+import os
+import re
+import glob
 
 DEFAULT_OUTPUT_PATH='./results/augmented'
 
@@ -34,8 +37,30 @@ def defineParser():
 
     return parser
 
+def getSubfolders(path):
+    return [re.sub(r"^/", '', x[0].replace(path, '')) for x in os.walk(path)]
+
+def getImageList(folder):
+    return glob.glob(os.path.join(folder, "*.png"))
+
+def dataAugmentImage(image, outputFolder):
+    print('Augmenting data for ' + image + ' into ' + outputFolder)
+
+def dataAugmentFolder(originalPath, folder, augmentOptions):
+    originFolder = os.path.join(originalPath, folder)
+    outputFolder = os.path.join(augmentOptions.out, folder)
+
+    imageList = getImageList(originFolder)
+
+    for image in imageList:
+        dataAugmentImage(image, outputFolder)
+
 def dataAugment(imagePath, augmentOptions):
-    print("Augmenting data")
+    subfolderList = getSubfolders(imagePath)
+
+    for folder in subfolderList:
+        dataAugmentFolder(imagePath, folder, augmentOptions)
+
 
 def start():
     args = defineParser().parse_args()
