@@ -25,6 +25,9 @@ def generateDescription():
         
         The cropping tool will generate an output directory (defaulting to "/data") whith a subfolder "/candidates"
         containing all the cropped images.
+        
+        If the --aspect option is used, the height parameter will be ignored, and the frame height will be adapted
+        to the calculated width of the image.
         """
 
 def defineParser():
@@ -38,6 +41,8 @@ def defineParser():
                         help='Variance for the random cropping size distribution')
     parser.add_argument('--output', dest='out', type=str, default='./data',
                         help='Output directory for the cropped images')
+    parser.add_argument('--aspect', dest='aspect', type=str,
+                        help='Aspect ratio of the cropping frame')
 
     return parser
 
@@ -59,6 +64,9 @@ def createCropFrame(shape, cropParams):
     height = shape[0]*cropParams['height']*randomVariation[0]
     width = shape[1]*cropParams['width']*randomVariation[1]
 
+    if (cropParams['aspect']):
+        height = width*cropParams['aspect']
+
     return (int(height[0]), int(width[0]))
 
 def cropImageWithFrame(img, frame):
@@ -79,10 +87,10 @@ def createCropName(image, outputPath, index):
 
     nameParts = image.split("/")
 
-    return os.path.join(outputPath, str(index) + "_" + nameParts[-1])
+    return os.path.join(outputPath, str(index) + "_" + nameParts[-1]).replace(".jpg", ".png")
 
 def cropImage(image, inputPath, outputPath, cropParams):
-
+    print('Cropping image ' + image)
     img = mpimg.imread(image)
 
     for i in range(DEFAULT_NUM_CROPS):
@@ -100,13 +108,22 @@ def randomCrop(inputPath, outputPath, cropParams):
     for image in imageList:
         cropImage(image, inputPath, os.path.join(outputPath, CANDIDATE_FOLDER), cropParams)
 
+def readAspect(aspect):
+    if aspect:
+        components = [int(x) for x in aspect.split(":")]
+        ratio = float(components[1])/float(components[0])
+        return ratio
+    else:
+        return None
+
 def start():
     args = defineParser().parse_args()
 
     cropParams = {
         "height": args.height/100,
         "width": args.width/100,
-        "var": args.var
+        "var": args.var,
+        "aspect": readAspect(args.aspect)
     }
 
     randomCrop(args.imagePath, args.out, cropParams)

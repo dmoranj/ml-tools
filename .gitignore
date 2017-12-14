@@ -1,3 +1,5 @@
 .idea/
 examples/
+data-augmentation/src/data/
+out/
 
