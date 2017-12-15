@@ -100,9 +100,7 @@ def dataAugmentImage(image, outputFolder, augmentOptions):
 
     rotations = [
         lambda i: slightRotation(i, 8),
-        lambda i: slightRotation(i, -8),
-        lambda i: slightRotation(i, 18),
-        lambda i: slightRotation(i, -18)
+        lambda i: slightRotation(i, -8)
     ]
 
     tones = [
@@ -110,10 +108,7 @@ def dataAugmentImage(image, outputFolder, augmentOptions):
         lambda i: toneModifications(i, (0.9, 1.1, 1.1, 1.0)),
         lambda i: toneModifications(i, (1.1, 1.1, 0.9, 1.0)),
         lambda i: toneModifications(i, (0.9, 0.9, 0.9, 1.0)),
-        lambda i: toneModifications(i, (1.1, 1.1, 1.1, 1.0)),
-        lambda i: toneModifications(i, (0.8, 0.8, 0.8, 1.0)),
-        lambda i: toneModifications(i, (1.2, 1.2, 1.2, 1.0)),
-        lambda i: toneModifications(i, (0.8, 1.2, 0.9, 1.0)),
+        lambda i: toneModifications(i, (1.1, 1.1, 1.1, 1.0))
     ]
 
     imageList = applyTransformations(imageList, [rotations, tones])
