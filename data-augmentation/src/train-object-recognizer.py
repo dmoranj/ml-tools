@@ -2,7 +2,6 @@ import objectdataset as od
 import tensorflow as tf
 
 import numpy as np
-from traininghooks import variable_summaries
 from traininghooks import TensorboardViewHook
 #from tf.train import CheckpointSaverListener
 
@@ -22,8 +21,6 @@ tf.logging.set_verbosity(tf.logging.INFO)
 #
 #     def end(self, session, global_step_value):
 #         print('Done with the session.')
-
-
 
 def conv_layer(name, input_layer, kernel, filters):
     with tf.name_scope(name):
@@ -50,7 +47,7 @@ def cnn_model_fn(features, labels, mode):
 
     # Input Tensor Shape: [batch_size, 64, 48, 3]
     # Output Tensor Shape: [batch_size, 32, 24, 32]
-    conv1 = conv_layer("Conv1", input_layer, [3, 3], 32)
+    conv1 = conv_layer("Conv1", input_layer, [5, 5], 32)
 
     # Input Tensor Shape: [batch_size, 32, 24, 32]
     # Output Tensor Shape: [batch_size, 16, 12, 64]
@@ -109,10 +106,9 @@ def cnn_model_fn(features, labels, mode):
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
-
-def main(unused_argv):
+def trainRecognizer(inputFolder, testTrainBalance, iterations, minibatch):
     # Load training and eval data
-    dataset = od.loadImageSet('./results/augmented', 0.8)
+    dataset = od.loadImageSet(inputFolder, testTrainBalance)
 
     train_data = np.asarray(dataset['train']['images'], dtype=np.float32)
     train_labels = np.asarray(dataset['train']['labels'], dtype=np.float32)
@@ -150,13 +146,13 @@ def main(unused_argv):
     train_input_fn = tf.estimator.inputs.numpy_input_fn(
         x={"x": train_data},
         y=train_labels,
-        batch_size=50,
+        batch_size=minibatch,
         num_epochs=None,
         shuffle=True)
 
     object_classifier.train(
         input_fn=train_input_fn,
-        steps=20000,
+        steps=iterations,
         hooks=[logging_hook, checkpoint_hook, summary_hook])
 
     # Evaluate the model and print results
@@ -169,6 +165,23 @@ def main(unused_argv):
     eval_results = object_classifier.evaluate(input_fn=eval_input_fn)
     print(eval_results)
 
+def parseArguments(args):
+    if (len(args) != 4):
+        return {
+            "output": './results/augmented',
+            "testTrainBalance": 0.8,
+            "iterations": 400,
+            "minibatch": 100
+        }
+    else:
+        return {}
+
+def main(argv):
+    args = parseArguments(argv)
+    trainRecognizer(args["output"],
+                    args['testTrainBalance'],
+                    args['iterations'],
+                    args['minibatch'])
 
 if __name__ == "__main__":
     tf.app.run()
