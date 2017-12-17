@@ -14,7 +14,7 @@ def readImages(imageList):
 
     for imagePath in imageList:
         image = mpimg.imread(imagePath)
-        normalized = np.asarray(image[:,:,:3], dtype=np.float16)/255
+        normalized = np.asarray(image[:, :, :3], dtype=np.float16)
         images.append(normalized)
 
     return np.array(images)
@@ -30,14 +30,14 @@ def generateObservations(outputFolder, positiveFolder, negativeFolder, maxResult
         if key > maxResults:
             break
 
-        imageList.append((imagePath, 1))
+        imageList.append((imagePath, 1.0))
 
     logging.info('Reading negative test case folder')
     for key, imagePath in enumerate(glob.glob(os.path.join(negativeFolder, "*.png"))):
         if key > maxResults:
             break
 
-        imageList.append((imagePath, 0))
+        imageList.append((imagePath, 0.0))
 
     imageDf = pd.DataFrame(data=imageList, columns=['images', 'labels'])
 
