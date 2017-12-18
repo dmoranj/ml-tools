@@ -1,4 +1,5 @@
 .idea/
+.Rhistory
 *.pyc
 examples/
 ill-examples/

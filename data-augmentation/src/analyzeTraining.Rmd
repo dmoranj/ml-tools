@@ -1,0 +1,48 @@
+---
+title: "Training Analysis For Object Recognition"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+source("analyzeTraining.R")
+
+trainResults <- loadResults("/tmp", "object_convnet*", "trainingData.csv")
+```
+
+## Results summary
+
+```{r, echo=FALSE}
+trainResults %>%
+  group_by(minibatch, alpha) %>%
+  summarise(testLoss=min(test_loss),
+            testAcc=max(test_accuracy),
+            trainLoss=min(train_loss),
+            trainAcc=max(train_accuracy)
+            ) %>%
+  arrange(desc(testAcc), trainAcc)
+``` 
+
+
+## Training plots
+
+```{r, echo=FALSE}
+trainResults %>%
+  filter(minibatch==100, alpha==1e-03) %>%
+  select(iteration, test_accuracy, train_accuracy) %>%
+  gather(metric, value, -iteration) %>%
+  ggplot(aes(x=iteration, y=value, color=metric)) +
+    geom_smooth()
+
+trainResults %>%
+  filter(minibatch==100, alpha==1e-03) %>%
+  select(iteration, test_loss, train_loss) %>%
+  gather(metric, value, -iteration) %>%
+  ggplot(aes(x=iteration, y=value, color=metric)) +
+    geom_smooth()
+```
