@@ -47,7 +47,7 @@ class CSVSaverListerner(CheckpointSaverListener):
         return session.run(ten)
 
     def saveToCSV(self, values):
-        record = str(self.data['minibatch']) + ', ' + str(values['step']) + ', ' \
+        record = str(self.data['minibatch']) + ', ' + str(self.data['learning']) + ', ' + str(values['step']) + ', ' \
                  + str(values['lossTest']) + ', ' + str(values['accuracyTest']) + ', ' \
                  + str(values['lossTrain']) + ', ' + str(values['accuracyTrain']) + '\n'
 
@@ -84,70 +84,73 @@ def conv_layer(name, input_layer, kernel, filters):
 
     return pool
 
-def cnn_model_fn(features, labels, mode):
-    # Define the input layer
-    input_layer = tf.reshape(features["x"], [-1, 64, 48, 3])
+def createModelFn(learningRate):
+    def cnn_model_fn(features, labels, mode):
+        # Define the input layer
+        input_layer = tf.reshape(features["x"], [-1, 64, 48, 3])
 
-    # Input Tensor Shape: [batch_size, 64, 48, 3]
-    # Output Tensor Shape: [batch_size, 32, 24, 32]
-    conv1 = conv_layer("Conv1", input_layer, [5, 5], 32)
+        # Input Tensor Shape: [batch_size, 64, 48, 3]
+        # Output Tensor Shape: [batch_size, 32, 24, 32]
+        conv1 = conv_layer("Conv1", input_layer, [5, 5], 32)
 
-    # Input Tensor Shape: [batch_size, 32, 24, 32]
-    # Output Tensor Shape: [batch_size, 16, 12, 64]
-    conv2 = conv_layer("Conv2", conv1, [3, 3], 64)
+        # Input Tensor Shape: [batch_size, 32, 24, 32]
+        # Output Tensor Shape: [batch_size, 16, 12, 64]
+        conv2 = conv_layer("Conv2", conv1, [3, 3], 64)
 
-    # Input Tensor Shape: [batch_size, 16, 12, 64]
-    # Output Tensor Shape: [batch_size, 8, 6, 128]
-    conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
+        # Input Tensor Shape: [batch_size, 16, 12, 64]
+        # Output Tensor Shape: [batch_size, 8, 6, 128]
+        conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
 
-    # Flatten
-    # Input Tensor Shape: [batch_size, 8, 6, 128]
-    # Output Tensor Shape: [batch_size, 3072]
-    pool_flat = tf.reshape(conv3, [-1, 8 * 6 * 128])
+        # Flatten
+        # Input Tensor Shape: [batch_size, 8, 6, 128]
+        # Output Tensor Shape: [batch_size, 3072]
+        pool_flat = tf.reshape(conv3, [-1, 8 * 6 * 128])
 
-    with tf.name_scope('Dense'):
-        # #1 Dense layer
-        # Input Tensor Shape: [batch_size, 6144]
-        # Output Tensor Shape: [batch_size, 512]
-        dense1 = tf.layers.dense(inputs=pool_flat, units=512, activation=tf.nn.relu)
+        with tf.name_scope('Dense'):
+            # #1 Dense layer
+            # Input Tensor Shape: [batch_size, 6144]
+            # Output Tensor Shape: [batch_size, 512]
+            dense1 = tf.layers.dense(inputs=pool_flat, units=512, activation=tf.nn.relu)
 
-        # Add dropout
-        #dropout = tf.layers.dropout(
-        #    inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+            # Add dropout
+            #dropout = tf.layers.dropout(
+            #    inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
 
-        # Logits layer
-        # Input Tensor Shape: [batch_size, 1024]
-        # Output Tensor Shape: [batch_size, 2]
-        rawLogits = tf.layers.dense(inputs=dense1, units=2, activation=tf.nn.sigmoid)
-        logits = tf.add(rawLogits, 1e-8)
+            # Logits layer
+            # Input Tensor Shape: [batch_size, 1024]
+            # Output Tensor Shape: [batch_size, 2]
+            rawLogits = tf.layers.dense(inputs=dense1, units=2, activation=tf.nn.sigmoid)
+            logits = tf.add(rawLogits, 1e-8)
 
-    predictions = {
-        "classes": tf.argmax(input=logits, axis=1),
-        "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
-    }
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        return tf.estimator.EstimatorSpec(mode=mode, predictions=logits)
+        predictions = {
+            "classes": tf.argmax(input=logits, axis=1),
+            "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
+        }
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=logits)
 
-    # Calculate Loss (for both TRAIN and EVAL modes)
-    onehot_labels = tf.concat([1- labels, labels], 1)
-    loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=onehot_labels), name="reduced_loss")
+        # Calculate Loss (for both TRAIN and EVAL modes)
+        onehot_labels = tf.concat([1- labels, labels], 1)
+        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=onehot_labels), name="reduced_loss")
 
-    tf.summary.scalar("loss", loss)
+        tf.summary.scalar("loss", loss)
 
-    # Configure the Training Op (for TRAIN mode)
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.AdagradOptimizer(learning_rate=1e-3)
-        train_op = optimizer.minimize(
-            loss=loss,
-            global_step=tf.train.get_global_step())
-        return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+        # Configure the Training Op (for TRAIN mode)
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            optimizer = tf.train.AdagradOptimizer(learning_rate=learningRate)
+            train_op = optimizer.minimize(
+                loss=loss,
+                global_step=tf.train.get_global_step())
+            return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
 
-    # Add evaluation metrics (for EVAL mode)
-    eval_metric_ops = {
-        "accuracy": tf.metrics.accuracy(
-            labels=labels, predictions=predictions["classes"])}
-    return tf.estimator.EstimatorSpec(
-        mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+        # Add evaluation metrics (for EVAL mode)
+        eval_metric_ops = {
+            "accuracy": tf.metrics.accuracy(
+                labels=labels, predictions=predictions["classes"])}
+        return tf.estimator.EstimatorSpec(
+            mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+
+    return cnn_model_fn
 
 def trainRecognizer(trainingData):
     # Load training and eval data
@@ -165,7 +168,7 @@ def trainRecognizer(trainingData):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=cnn_model_fn, model_dir=trainingData['output'])
+        model_fn=createModelFn(trainingData['learning']), model_dir=trainingData['output'])
 
     # Set up logging for predictions
     # Log the values in the "Softmax" tensor with label "probabilities"
