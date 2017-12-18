@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import objectdataset as od
 import tensorflow as tf
 import os
@@ -192,7 +194,7 @@ def trainRecognizer(trainingData):
     saver_hook = tf.train.CheckpointSaverHook(
         trainingData['output'],
         listeners=[listener],
-        save_steps=200)
+        save_steps=500)
 
 
     # Train the model
@@ -210,11 +212,11 @@ def trainRecognizer(trainingData):
 
     # Evaluate the model and print results
     eval_results = evalClassifier(object_classifier, eval_data, eval_labels)
-    print(eval_results)
 
 
 def parseArguments(args):
-    if (len(args) != 4):
+    if (len(args) != 6):
+        print("Wrong number of parameters. Defaulting to internal values.")
         return {
             "input": './results/augmented',
             "output": '/tmp/object_convnet1',

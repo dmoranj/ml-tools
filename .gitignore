@@ -1,4 +1,5 @@
 .idea/
+*.pyc
 examples/
 ill-examples/
 data-augmentation/src/data/
