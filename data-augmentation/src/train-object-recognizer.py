@@ -1,32 +1,78 @@
 import objectdataset as od
 import tensorflow as tf
+import os
 
 import numpy as np
 from traininghooks import TensorboardViewHook
-#from tf.train import CheckpointSaverListener
+from tensorflow.python.training.basic_session_run_hooks import CheckpointSaverListener
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-# class CSVSaverListerner(CheckpointSaverListener):
-#     def begin(self):
-#         # You can add ops to the graph here.
-#         print('Starting the session.')
-#         self.your_tensor = ...
-#
-#     def before_save(self, session, global_step_value):
-#         print('About to write a checkpoint')
-#
-#     def after_save(self, session, global_step_value):
-#         print('Done writing checkpoint.')
-#
-#     def end(self, session, global_step_value):
-#         print('Done with the session.')
+def evalClassifier(object_classifier, eval_data, eval_labels):
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": eval_data},
+        y=eval_labels,
+        num_epochs=1,
+        shuffle=False)
+
+    return object_classifier.evaluate(input_fn=eval_input_fn)
+
+class CSVSaverListerner(CheckpointSaverListener):
+
+    def __init__(self, additionalData, object_classifier,
+                 train_data, train_labels,
+                 eval_data, eval_labels ):
+        self.data = additionalData
+        self.classifier = object_classifier
+        self.datasets = {
+            "train": {
+                "input": train_data,
+                "labels": train_labels
+            },
+            "test": {
+                "input": eval_data,
+                "labels": eval_labels
+            }
+        }
+
+        if not os.path.exists(additionalData['output']):
+            os.makedirs(additionalData['output'])
+
+        self.data['csvname'] = additionalData['output'] + '/trainingData.csv'
+        self.prepared = False
+        self.f = open(self.data['csvname'], 'a')
+
+    def extractTensorValue(self, session, tensorName):
+        ten = session.graph.get_tensor_by_name(tensorName)
+        return session.run(ten)
+
+    def saveToCSV(self, values):
+        record = str(self.data['minibatch']) + ', ' + str(values['step']) + ', ' \
+                 + str(values['lossTest']) + ', ' + str(values['accuracyTest']) + ', ' \
+                 + str(values['lossTrain']) + ', ' + str(values['accuracyTrain']) + '\n'
+
+        self.f.write(record)
+        self.f.flush()
+
+    def after_save(self, session, global_step_value):
+        accuracyTest = evalClassifier(self.classifier, self.datasets['test']['input'], self.datasets['test']['labels'])
+        accuracyTrain = evalClassifier(self.classifier, self.datasets['train']['input'], self.datasets['train']['labels'])
+
+        values = {
+            "step": global_step_value,
+            "lossTest": accuracyTest['loss'],
+            "accuracyTest": accuracyTest['accuracy'],
+            "lossTrain": accuracyTrain['loss'],
+            "accuracyTrain": accuracyTrain['accuracy'],
+        }
+
+        self.saveToCSV(values)
+
+    def end(self, session, global_step_value):
+        self.f.close()
 
 def conv_layer(name, input_layer, kernel, filters):
     with tf.name_scope(name):
-        # #1 convolutional layer
-        # Input Tensor Shape: [batch_size, 128, 96, 3]
-        # Output Tensor Shape: [batch_size, 128, 96, 32]
         conv = tf.layers.conv2d(
             inputs=input_layer,
             filters=filters,
@@ -34,9 +80,6 @@ def conv_layer(name, input_layer, kernel, filters):
             padding="same",
             activation=tf.nn.relu)
 
-        # #1 pooling layer
-        # Input Tensor Shape: [batch_size, 128, 96, 32]
-        # Output Tensor Shape: [batch_size, 64, 48, 32]
         pool = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
 
     return pool
@@ -87,7 +130,7 @@ def cnn_model_fn(features, labels, mode):
 
     # Calculate Loss (for both TRAIN and EVAL modes)
     onehot_labels = tf.concat([1- labels, labels], 1)
-    loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=onehot_labels))
+    loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=onehot_labels), name="reduced_loss")
 
     tf.summary.scalar("loss", loss)
 
@@ -106,9 +149,9 @@ def cnn_model_fn(features, labels, mode):
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
-def trainRecognizer(inputFolder, testTrainBalance, iterations, minibatch):
+def trainRecognizer(trainingData):
     # Load training and eval data
-    dataset = od.loadImageSet(inputFolder, testTrainBalance)
+    dataset = od.loadImageSet(trainingData["input"], trainingData["testTrainBalance"])
 
     train_data = np.asarray(dataset['train']['images'], dtype=np.float32)
     train_labels = np.asarray(dataset['train']['labels'], dtype=np.float32)
@@ -122,7 +165,7 @@ def trainRecognizer(inputFolder, testTrainBalance, iterations, minibatch):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=cnn_model_fn, model_dir="/tmp/object_convnet_1")
+        model_fn=cnn_model_fn, model_dir=trainingData['output'])
 
     # Set up logging for predictions
     # Log the values in the "Softmax" tensor with label "probabilities"
@@ -130,58 +173,59 @@ def trainRecognizer(inputFolder, testTrainBalance, iterations, minibatch):
     logging_hook = tf.train.LoggingTensorHook(
         tensors=tensors_to_log, every_n_iter=50)
 
-    # Add Checkpoint hooks
-    checkpoint_hook = tf.train.CheckpointSaverHook("/tmp/object_convnet_1", save_steps=50)
-
     # Add Summary hook
     summary_hook = tf.train.SummarySaverHook(
-        output_dir='/tmp/object_convnet_1/summary',
+        output_dir=trainingData['output'] + '/summary',
         save_steps=50,
         scaffold=tf.train.Scaffold(summary_op=tf.summary.merge_all()))
 
     # Add information for the Tensorboard summary
     tensorboard_hook = TensorboardViewHook()
 
+    listener = CSVSaverListerner(trainingData, object_classifier,
+                                 train_data, train_labels,
+                                 eval_data, eval_labels)
+
+    saver_hook = tf.train.CheckpointSaverHook(
+        trainingData['output'],
+        listeners=[listener],
+        save_steps=200)
+
+
     # Train the model
     train_input_fn = tf.estimator.inputs.numpy_input_fn(
         x={"x": train_data},
         y=train_labels,
-        batch_size=minibatch,
+        batch_size=trainingData["minibatch"],
         num_epochs=None,
         shuffle=True)
 
     object_classifier.train(
         input_fn=train_input_fn,
-        steps=iterations,
-        hooks=[logging_hook, checkpoint_hook, summary_hook])
+        steps=trainingData["iterations"],
+        hooks=[logging_hook, saver_hook, summary_hook])
 
     # Evaluate the model and print results
-    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-        x={"x": eval_data},
-        y=eval_labels,
-        num_epochs=1,
-        shuffle=False)
-
-    eval_results = object_classifier.evaluate(input_fn=eval_input_fn)
+    eval_results = evalClassifier(object_classifier, eval_data, eval_labels)
     print(eval_results)
+
 
 def parseArguments(args):
     if (len(args) != 4):
         return {
-            "output": './results/augmented',
-            "testTrainBalance": 0.8,
-            "iterations": 400,
-            "minibatch": 100
+            "input": './results/augmented',
+            "output": '/tmp/object_convnet1',
+            "testTrainBalance": 0.85,
+            "iterations": 1000,
+            "minibatch": 100,
+            "learning": 1e-3
         }
     else:
         return {}
 
 def main(argv):
     args = parseArguments(argv)
-    trainRecognizer(args["output"],
-                    args['testTrainBalance'],
-                    args['iterations'],
-                    args['minibatch'])
+    trainRecognizer(args)
 
 if __name__ == "__main__":
     tf.app.run()
