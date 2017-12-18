@@ -4,7 +4,7 @@ import objectrecognizer as obrec
 
 DEFAULT_ARGS = {
      "input": './results/augmented',
-     "output": '/tmp/object_convnet',
+     "output": '/tmp/object_convnet5L',
      "testTrainBalance": 0.85,
      "iterations": 20000,
 }
@@ -19,7 +19,7 @@ def generateArgs(learning, minibatch, index1, index2):
     return args
 
 def executeExperiments():
-    learningValues = [1e-3, 5e-4, 1e-4]
+    learningValues = [5e-3, 3e-3, 1e-3, 5e-4]
     minibatchValues = [25, 50, 100, 200]
 
     for i, learning in enumerate(learningValues):

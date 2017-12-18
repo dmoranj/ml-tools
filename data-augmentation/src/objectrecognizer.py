@@ -103,16 +103,20 @@ def createModelFn(learningRate):
         # Output Tensor Shape: [batch_size, 8, 6, 128]
         conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
 
+        # Input Tensor Shape: [batch_size, 8, 6, 64]
+        # Output Tensor Shape: [batch_size, 4, 3, 128]
+        conv4 = conv_layer("Conv4", conv3, [3, 3], 256)
+
         # Flatten
-        # Input Tensor Shape: [batch_size, 8, 6, 128]
+        # Input Tensor Shape: [batch_size, 4, 3, 256]
         # Output Tensor Shape: [batch_size, 3072]
-        pool_flat = tf.reshape(conv3, [-1, 8 * 6 * 128])
+        pool_flat = tf.reshape(conv4, [-1, 4 * 3 * 256])
 
         with tf.name_scope('Dense'):
             # #1 Dense layer
-            # Input Tensor Shape: [batch_size, 6144]
-            # Output Tensor Shape: [batch_size, 512]
-            dense1 = tf.layers.dense(inputs=pool_flat, units=512, activation=tf.nn.relu)
+            # Input Tensor Shape: [batch_size, 3072]
+            # Output Tensor Shape: [batch_size, 1024]
+            dense1 = tf.layers.dense(inputs=pool_flat, units=1024, activation=tf.nn.relu)
 
             # Add dropout
             #dropout = tf.layers.dropout(

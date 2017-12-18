@@ -12,7 +12,7 @@ library(ggplot2)
 
 source("analyzeTraining.R")
 
-trainResults <- loadResults("/tmp", "object_convnet*", "trainingData.csv")
+trainResults <- loadResults("/tmp", "object_convnet5L*", "trainingData.csv")
 ```
 
 ## Results summary
@@ -33,16 +33,16 @@ trainResults %>%
 
 ```{r, echo=FALSE}
 trainResults %>%
-  filter(minibatch==100, alpha==1e-03) %>%
+  filter(minibatch==50, alpha==5e-03) %>%
   select(iteration, test_accuracy, train_accuracy) %>%
   gather(metric, value, -iteration) %>%
   ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_smooth()
+    geom_line()
 
 trainResults %>%
-  filter(minibatch==100, alpha==1e-03) %>%
+  filter(minibatch==50, alpha==5e-03) %>%
   select(iteration, test_loss, train_loss) %>%
   gather(metric, value, -iteration) %>%
   ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_smooth()
+    geom_line()
 ```
