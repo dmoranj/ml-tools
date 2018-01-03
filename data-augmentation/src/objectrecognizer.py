@@ -10,6 +10,8 @@ from tensorflow.python.training.basic_session_run_hooks import CheckpointSaverLi
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+INPUT_SHAPE=[-1, 64, 48, 3]
+
 def evalClassifier(object_classifier, eval_data, eval_labels):
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
         x={"x": eval_data},
@@ -89,11 +91,11 @@ def conv_layer(name, input_layer, kernel, filters):
 def createModelFn(learningRate):
     def cnn_model_fn(features, labels, mode):
         # Define the input layer
-        input_layer = tf.reshape(features["x"], [-1, 64, 48, 3])
+        input_layer = tf.reshape(features["x"], INPUT_SHAPE)
 
         # Input Tensor Shape: [batch_size, 64, 48, 3]
         # Output Tensor Shape: [batch_size, 32, 24, 32]
-        conv1 = conv_layer("Conv1", input_layer, [5, 5], 32)
+        conv1 = conv_layer("Conv1", input_layer, [5, 5], 64)
 
         # Input Tensor Shape: [batch_size, 32, 24, 32]
         # Output Tensor Shape: [batch_size, 16, 12, 64]
@@ -132,8 +134,11 @@ def createModelFn(learningRate):
             "classes": tf.argmax(input=logits, axis=1),
             "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
         }
+
         if mode == tf.estimator.ModeKeys.PREDICT:
-            return tf.estimator.EstimatorSpec(mode=mode, predictions=logits)
+            outputs = {"prediction": tf.estimator.export.PredictOutput(predictions)}
+
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=logits, export_outputs=outputs)
 
         # Calculate Loss (for both TRAIN and EVAL modes)
         onehot_labels = tf.concat([1- labels, labels], 1)
@@ -198,7 +203,7 @@ def trainRecognizer(trainingData):
     saver_hook = tf.train.CheckpointSaverHook(
         trainingData['output'],
         listeners=[listener],
-        save_steps=500)
+        save_steps=1000)
 
 
     # Train the model
@@ -217,9 +222,21 @@ def trainRecognizer(trainingData):
     # Evaluate the model and print results
     eval_results = evalClassifier(object_classifier, eval_data, eval_labels)
 
+    def serving_input_receiver_fn():
+        feature_spec = {'x': tf.FixedLenFeature(INPUT_SHAPE[1:4], tf.float32)}
+        serialized_tf_example = tf.placeholder(dtype=tf.string,
+                                               shape=[None],
+                                               name='input_tensors')
+
+        receiver_tensors = {'inputs': serialized_tf_example}
+        features = tf.parse_example(serialized_tf_example, feature_spec)
+        return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
+
+    object_classifier.export_savedmodel(trainingData['output'], serving_input_receiver_fn)
+
 
 def parseArguments(args):
-    if (len(args) != 6):
+    if (len(args) != 7):
         print("Wrong number of parameters. Defaulting to internal values.")
         return {
             "input": './results/augmented',
@@ -230,7 +247,14 @@ def parseArguments(args):
             "learning": 1e-3
         }
     else:
-        return {}
+        return {
+            "input": args[1],
+            "output": args[2],
+            "testTrainBalance": float(args[3]),
+            "iterations": float(args[4]),
+            "minibatch": int(args[5]),
+            "learning": float(args[6])
+        }
 
 def main(argv):
     args = parseArguments(argv)
