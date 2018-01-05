@@ -224,15 +224,21 @@ def trainRecognizer(trainingData):
 
     def serving_input_receiver_fn():
         feature_spec = {'x': tf.FixedLenFeature(INPUT_SHAPE[1:4], tf.float32)}
-        serialized_tf_example = tf.placeholder(dtype=tf.string,
-                                               shape=[None],
+        serialized_tf_example = tf.placeholder(dtype=tf.float32,
+                                               shape=INPUT_SHAPE[1:4],
                                                name='input_tensors')
 
         receiver_tensors = {'inputs': serialized_tf_example}
         features = tf.parse_example(serialized_tf_example, feature_spec)
+
         return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
 
-    object_classifier.export_savedmodel(trainingData['output'], serving_input_receiver_fn)
+    placeholderInput = tf.placeholder(dtype=tf.float32,
+                                            shape=INPUT_SHAPE[1:4],
+                                            name='input_tensors')
+
+    alternative_fn = tf.estimator.export.build_raw_serving_input_receiver_fn({"x": placeholderInput})
+    object_classifier.export_savedmodel(trainingData['output'], alternative_fn)
 
 
 def parseArguments(args):

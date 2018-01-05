@@ -3,7 +3,6 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy as sci
 
 
 INPUTMODEL='./results/object_convnet1/model.ckpt-11200.meta'
@@ -18,7 +17,7 @@ def visualizeWeights(weights):
     print('- Conv3 size = ' + str(weights['conv3'][0].shape))
 
     conv1img = np.zeros((49, 49, 3))
-    conv1img.fill(-10)
+    conv1img.fill(1)
 
     for i in range(0, 8):
         for j in range(0, 8):
@@ -33,7 +32,8 @@ def visualizeWeights(weights):
 
             conv1img[initX:endX, initY:endY, :] = kernel
 
-    plt.imshow(sci.special.expit(10*conv1img))
+    maxed = np.maximum(3*conv1img, np.zeros((49, 49, 3)))
+    plt.imshow(maxed)
     plt.show()
 
 
