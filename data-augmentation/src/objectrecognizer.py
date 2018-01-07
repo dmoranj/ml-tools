@@ -10,7 +10,7 @@ from tensorflow.python.training.basic_session_run_hooks import CheckpointSaverLi
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-INPUT_SHAPE=[-1, 64, 48, 3]
+INPUT_SHAPE=[-1, 128, 96, 3]
 
 def evalClassifier(object_classifier, eval_data, eval_labels):
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -93,30 +93,30 @@ def createModelFn(learningRate):
         # Define the input layer
         input_layer = tf.reshape(features["x"], INPUT_SHAPE)
 
-        # Input Tensor Shape: [batch_size, 64, 48, 3]
-        # Output Tensor Shape: [batch_size, 32, 24, 32]
+        # Input Tensor Shape: [batch_size, 128, 96, 3]
+        # Output Tensor Shape: [batch_size, 64, 48, 32]
         conv1 = conv_layer("Conv1", input_layer, [5, 5], 64)
 
-        # Input Tensor Shape: [batch_size, 32, 24, 64]
-        # Output Tensor Shape: [batch_size, 16, 12, 64]
-        conv2 = conv_layer("Conv2", conv1, [3, 3], 128)
+        # Input Tensor Shape: [batch_size, 64, 48, 64]
+        # Output Tensor Shape: [batch_size, 32, 24, 64]
+        conv2 = conv_layer("Conv2", conv1, [3, 3], 64)
 
-        # Input Tensor Shape: [batch_size, 16, 12, 128]
-        # Output Tensor Shape: [batch_size, 8, 6, 128]
+        # Input Tensor Shape: [batch_size, 32, 24, 64]
+        # Output Tensor Shape: [batch_size, 16, 12, 128]
         conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
 
-        # Input Tensor Shape: [batch_size, 8, 6, 64]
-        # Output Tensor Shape: [batch_size, 4, 3, 128]
+        # Input Tensor Shape: [batch_size, 16, 12, 128]
+        # Output Tensor Shape: [batch_size, 8, 6, 256]
         conv4 = conv_layer("Conv4", conv3, [3, 3], 256)
 
         # Flatten
-        # Input Tensor Shape: [batch_size, 4, 3, 256]
-        # Output Tensor Shape: [batch_size, 3072]
-        pool_flat = tf.reshape(conv4, [-1, 4 * 3 * 256])
+        # Input Tensor Shape: [batch_size, 8, 6, 256]
+        # Output Tensor Shape: [batch_size, 12288]
+        pool_flat = tf.reshape(conv4, [-1, 8 * 6 * 256])
 
         with tf.name_scope('Dense'):
             # #1 Dense layer
-            # Input Tensor Shape: [batch_size, 3072]
+            # Input Tensor Shape: [batch_size, 12288]
             # Output Tensor Shape: [batch_size, 1024]
             dense1 = tf.layers.dense(inputs=pool_flat, units=1024, activation=tf.nn.relu)
 

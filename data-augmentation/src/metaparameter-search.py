@@ -18,10 +18,7 @@ def generateArgs(learning, minibatch, index1, index2):
 
     return args
 
-def executeExperiments():
-    learningValues = [5e-3, 3e-3, 1e-3, 5e-4]
-    minibatchValues = [25, 50, 100, 200]
-
+def executeExperiments(learningValues, minibatchValues):
     for i, learning in enumerate(learningValues):
         for j, minibatch in enumerate(minibatchValues):
             print('\n\nTraining for learning rate {} and minibatch {}\n'.format(learning, minibatch))
@@ -29,4 +26,4 @@ def executeExperiments():
             obrec.trainRecognizer(args)
 
 
-executeExperiments()
+executeExperiments([7e-3, 5e-3, 2e-3], [20, 35, 50])

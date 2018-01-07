@@ -12,7 +12,7 @@ library(ggplot2)
 
 source("analyzeTraining.R")
 
-trainResults <- loadResults("./results", "object_convnet1*", "trainingData.csv")
+trainResults <- loadResults("/tmp", "object_convnet5*", "trainingData.csv")
 ```
 
 ## Results summary

@@ -8,15 +8,16 @@ from skimage import transform as trans
 from fileutils import readAspect
 import matplotlib.patches as patches
 
-INPUTMODEL='./results/object_convnet1/1515141257'
+MODEL_ID='1515339063'
+INPUTMODEL='./results/object_convnet1/' + MODEL_ID
 
 AVG_WIDTH=0.2
 VAR_WIDTH=0.1
 VAR_POSITION=0.3
 ASPECT_RATIO='5:6'
-TOLERANCE=0.65
+TOLERANCE=0.73
 MIN_WIDTH=0.05
-INPUT_SHAPE=(64, 48, 3)
+INPUT_SHAPE=(128, 96, 3)
 
 def getInputData(imagePath):
     image = mpimg.imread(imagePath)
@@ -29,18 +30,15 @@ def predictImg(inputData):
         output = tf.get_default_graph().get_tensor_by_name('softmax_tensor:0')
         preds = sess.run(output, feed_dict={"input_tensors:0": inputData})
 
-        return preds[0, 1] > TOLERANCE
+        return preds[0, 1]
 
-def viewImageWithBoxes(image, boxes, predictions):
+def viewImageWithBoxes(image, boxes):
     _, ax = plt.subplots(1)
 
     ax.imshow(image)
 
     for index, box in enumerate(boxes):
-        color = 'r'
-
-        if (predictions[index]):
-            color = 'g'
+        color = 'g'
 
         rect = patches.Rectangle((box['x'] -box['width']/2, box['y'] - box['height']/2),
                                  box['width'], box['height'],
@@ -92,11 +90,14 @@ def generateBoxingForImage(imagePath):
     image = getInputData(imagePath)
 
     print('Shape of the image: ' + str(image.shape))
-    boxes = createBoxes(image, 15)
-
-    print('Boxes: ' + str(boxes))
+    boxes = createBoxes(image, 100)
     predictions = recognizeInBoxes(image, boxes)
-    viewImageWithBoxes(image, boxes, predictions)
+
+    initialTargets = [box for i, box in enumerate(boxes) if predictions[i] > TOLERANCE]
+
+    viewImageWithBoxes(image, initialTargets)
+
+    print(predictions)
 
 
 
