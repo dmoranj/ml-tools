@@ -88,31 +88,23 @@ def conv_layer(name, input_layer, kernel, filters):
 
     return pool
 
-def createModelFn(learningRate):
+def createModelFn(learningRate, convLayers):
     def cnn_model_fn(features, labels, mode):
+
+        _, rows, columns, channels = INPUT_SHAPE
+
         # Define the input layer
-        input_layer = tf.reshape(features["x"], INPUT_SHAPE)
+        layers = [tf.reshape(features["x"], INPUT_SHAPE)]
 
-        # Input Tensor Shape: [batch_size, 128, 96, 3]
-        # Output Tensor Shape: [batch_size, 64, 48, 32]
-        conv1 = conv_layer("Conv1", input_layer, [5, 5], 64)
+        for index, kernel in enumerate(convLayers):
+            filterSize, filterNumber = kernel
+            currentLayer = conv_layer("Conv" + str(index + 1), layers[index], [filterSize, filterSize], filterNumber)
+            layers.append(currentLayer)
 
-        # Input Tensor Shape: [batch_size, 64, 48, 64]
-        # Output Tensor Shape: [batch_size, 32, 24, 64]
-        conv2 = conv_layer("Conv2", conv1, [3, 3], 64)
-
-        # Input Tensor Shape: [batch_size, 32, 24, 64]
-        # Output Tensor Shape: [batch_size, 16, 12, 128]
-        conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
-
-        # Input Tensor Shape: [batch_size, 16, 12, 128]
-        # Output Tensor Shape: [batch_size, 8, 6, 256]
-        conv4 = conv_layer("Conv4", conv3, [3, 3], 256)
 
         # Flatten
-        # Input Tensor Shape: [batch_size, 8, 6, 256]
-        # Output Tensor Shape: [batch_size, 12288]
-        pool_flat = tf.reshape(conv4, [-1, 8 * 6 * 256])
+        _, lastLayerRows, lastLayerColumns, lastLayerChannels = layers[-1].shape
+        pool_flat = tf.reshape(layers[-1], [-1, lastLayerRows.value * lastLayerColumns.value * lastLayerChannels.value])
 
         with tf.name_scope('Dense'):
             # #1 Dense layer
@@ -179,7 +171,8 @@ def trainRecognizer(trainingData):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=createModelFn(trainingData['learning']), model_dir=trainingData['output'])
+        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 64], [3, 128], [3, 256]]),
+        model_dir=trainingData['output'])
 
     # Set up logging for predictions
     # Log the values in the "Softmax" tensor with label "probabilities"
