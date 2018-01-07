@@ -97,11 +97,11 @@ def createModelFn(learningRate):
         # Output Tensor Shape: [batch_size, 32, 24, 32]
         conv1 = conv_layer("Conv1", input_layer, [5, 5], 64)
 
-        # Input Tensor Shape: [batch_size, 32, 24, 32]
+        # Input Tensor Shape: [batch_size, 32, 24, 64]
         # Output Tensor Shape: [batch_size, 16, 12, 64]
-        conv2 = conv_layer("Conv2", conv1, [3, 3], 64)
+        conv2 = conv_layer("Conv2", conv1, [3, 3], 128)
 
-        # Input Tensor Shape: [batch_size, 16, 12, 64]
+        # Input Tensor Shape: [batch_size, 16, 12, 128]
         # Output Tensor Shape: [batch_size, 8, 6, 128]
         conv3 = conv_layer("Conv3", conv2, [3, 3], 128)
 

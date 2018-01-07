@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
+from skimage import transform as trans
 from fileutils import readAspect
 import matplotlib.patches as patches
 
@@ -14,7 +15,8 @@ VAR_WIDTH=0.1
 VAR_POSITION=0.3
 ASPECT_RATIO='5:6'
 TOLERANCE=0.65
-MIN_WIDTH=0.01
+MIN_WIDTH=0.05
+INPUT_SHAPE=(64, 48, 3)
 
 def getInputData(imagePath):
     image = mpimg.imread(imagePath)
@@ -23,20 +25,26 @@ def getInputData(imagePath):
 
 def predictImg(inputData):
     with tf.Session(graph=tf.Graph()) as sess:
+        _ = tf.saved_model.loader.load(sess, ['serve'], INPUTMODEL)
         output = tf.get_default_graph().get_tensor_by_name('softmax_tensor:0')
         preds = sess.run(output, feed_dict={"input_tensors:0": inputData})
 
-        return preds[1] > TOLERANCE
+        return preds[0, 1] > TOLERANCE
 
-def viewImageWithBoxes(image, boxes):
+def viewImageWithBoxes(image, boxes, predictions):
     _, ax = plt.subplots(1)
 
     ax.imshow(image)
 
-    for box in boxes:
+    for index, box in enumerate(boxes):
+        color = 'r'
+
+        if (predictions[index]):
+            color = 'g'
+
         rect = patches.Rectangle((box['x'] -box['width']/2, box['y'] - box['height']/2),
                                  box['width'], box['height'],
-                                 linewidth=1, edgecolor='r', facecolor='none')
+                                 linewidth=1, edgecolor=color, facecolor='none')
         ax.add_patch(rect)
 
     plt.show()
@@ -65,6 +73,21 @@ def createBoxes(image, n):
 
     return boxes
 
+def recognizeInBoxes(image, boxes):
+    predictions = []
+
+    for i in range(0, len(boxes)):
+        xi = int(boxes[i]['x'] - boxes[i]['width']/2)
+        xf = int(boxes[i]['x'] + boxes[i]['width']/2)
+        yi = int(boxes[i]['y'] - boxes[i]['height']/2)
+        yf = int(boxes[i]['y'] + boxes[i]['height']/2)
+
+        subimage = image[yi:yf, xi:xf, :]
+        subimage = trans.resize(subimage, INPUT_SHAPE)
+        predictions.append(predictImg(subimage))
+
+    return predictions
+
 def generateBoxingForImage(imagePath):
     image = getInputData(imagePath)
 
@@ -72,7 +95,9 @@ def generateBoxingForImage(imagePath):
     boxes = createBoxes(image, 15)
 
     print('Boxes: ' + str(boxes))
-    viewImageWithBoxes(image, boxes)
+    predictions = recognizeInBoxes(image, boxes)
+    viewImageWithBoxes(image, boxes, predictions)
+
 
 
 generateBoxingForImage('../../examples/2016-08-26 00.26.17.png')
