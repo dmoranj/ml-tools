@@ -17,7 +17,7 @@ def evalClassifier(object_classifier, eval_data, eval_labels):
         x={"x": eval_data},
         y=eval_labels,
         num_epochs=1,
-        shuffle=False)
+        shuffle=True)
 
     return object_classifier.evaluate(input_fn=eval_input_fn)
 
@@ -84,7 +84,14 @@ def conv_layer(name, input_layer, kernel, filters):
             padding="same",
             activation=tf.nn.relu)
 
-        pool = tf.layers.max_pooling2d(inputs=conv, pool_size=[2, 2], strides=2)
+        convSecond = tf.layers.conv2d(
+            inputs=conv,
+            filters=filters,
+            kernel_size=kernel,
+            padding="same",
+            activation=tf.nn.relu)
+
+        pool = tf.layers.max_pooling2d(inputs=convSecond, pool_size=[2, 2], strides=2)
 
     return pool
 
@@ -113,13 +120,13 @@ def createModelFn(learningRate, convLayers):
             dense1 = tf.layers.dense(inputs=pool_flat, units=1024, activation=tf.nn.relu)
 
             # Add dropout
-            #dropout = tf.layers.dropout(
-            #    inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+            dropout = tf.layers.dropout(
+                inputs=dense1, rate=0.5, training=mode == tf.estimator.ModeKeys.TRAIN)
 
             # Logits layer
             # Input Tensor Shape: [batch_size, 1024]
             # Output Tensor Shape: [batch_size, 2]
-            rawLogits = tf.layers.dense(inputs=dense1, units=2, activation=tf.nn.sigmoid)
+            rawLogits = tf.layers.dense(inputs=dropout, units=2, activation=tf.nn.sigmoid)
             logits = tf.add(rawLogits, 1e-8)
 
         predictions = {
@@ -157,7 +164,7 @@ def createModelFn(learningRate, convLayers):
 
 def trainRecognizer(trainingData):
     # Load training and eval data
-    dataset = od.loadImageSet(trainingData["input"], trainingData["testTrainBalance"])
+    dataset = od.loadImageSet(trainingData["input"], trainingData["testTrainBalance"], 7000)
 
     train_data = np.asarray(dataset['train']['images'], dtype=np.float32)
     train_labels = np.asarray(dataset['train']['labels'], dtype=np.float32)

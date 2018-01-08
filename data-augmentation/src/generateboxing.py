@@ -7,9 +7,15 @@ import matplotlib.pyplot as plt
 from skimage import transform as trans
 from fileutils import readAspect
 import matplotlib.patches as patches
+import argparse
+from fileutils import getImageList
+from fileutils import generateName
+import os
+from imageUtils import loadJpegImage
 
-MODEL_ID='1515339063'
+MODEL_ID='1515356249'
 INPUTMODEL='./results/object_convnet1/' + MODEL_ID
+DEFAULT_OUTPUT_PATH='./results/selection'
 
 AVG_WIDTH=0.2
 VAR_WIDTH=0.1
@@ -19,10 +25,9 @@ TOLERANCE=0.73
 MIN_WIDTH=0.05
 INPUT_SHAPE=(128, 96, 3)
 
-def getInputData(imagePath):
-    image = mpimg.imread(imagePath)
-    normalized = np.asarray(image[:, :, :3], dtype=np.float32)
-    return normalized
+FOLDER_POSITIVE='positive'
+FOLDER_NEGATIVE='negative'
+
 
 def predictImg(inputData):
     with tf.Session(graph=tf.Graph()) as sess:
@@ -31,6 +36,7 @@ def predictImg(inputData):
         preds = sess.run(output, feed_dict={"input_tensors:0": inputData})
 
         return preds[0, 1]
+
 
 def viewImageWithBoxes(image, boxes):
     _, ax = plt.subplots(1)
@@ -71,35 +77,111 @@ def createBoxes(image, n):
 
     return boxes
 
+
+def getSubImage(image, box):
+    xi = int(box['x'] - box['width']/2)
+    xf = int(box['x'] + box['width']/2)
+    yi = int(box['y'] - box['height']/2)
+    yf = int(box['y'] + box['height']/2)
+
+    subimage = image[yi:yf, xi:xf, :]
+    subimage = trans.resize(subimage, INPUT_SHAPE)
+
+    return subimage
+
+
 def recognizeInBoxes(image, boxes):
     predictions = []
 
     for i in range(0, len(boxes)):
-        xi = int(boxes[i]['x'] - boxes[i]['width']/2)
-        xf = int(boxes[i]['x'] + boxes[i]['width']/2)
-        yi = int(boxes[i]['y'] - boxes[i]['height']/2)
-        yf = int(boxes[i]['y'] + boxes[i]['height']/2)
-
-        subimage = image[yi:yf, xi:xf, :]
-        subimage = trans.resize(subimage, INPUT_SHAPE)
+        subimage = getSubImage(image, boxes[i])
         predictions.append(predictImg(subimage))
 
     return predictions
 
-def generateBoxingForImage(imagePath):
-    image = getInputData(imagePath)
 
-    print('Shape of the image: ' + str(image.shape))
-    boxes = createBoxes(image, 100)
-    predictions = recognizeInBoxes(image, boxes)
-
+def createDataset(image, predictions):
     initialTargets = [box for i, box in enumerate(boxes) if predictions[i] > TOLERANCE]
-
     viewImageWithBoxes(image, initialTargets)
-
     print(predictions)
 
 
+def cropImages(image, boxes, predictions, outputFolder):
+    print('Cropping')
 
-generateBoxingForImage('../../examples/2016-08-26 00.26.17.png')
+    imageName = generateName()
+
+    for i in range(0, len(boxes)):
+        subimage = getSubImage(image, boxes[i])
+
+        if predictions[i] > TOLERANCE:
+            imagePath = os.path.join(outputFolder, FOLDER_POSITIVE, imageName + str(i) + ".png")
+        else:
+            imagePath = os.path.join(outputFolder, FOLDER_NEGATIVE, imageName + str(i) + ".png")
+
+        mpimg.imsave(imagePath, subimage)
+
+
+def generateBoxingForImage(imagePath, options):
+    image = loadJpegImage(imagePath)
+
+    print('Shape of the image: ' + str(image.shape))
+    boxes = createBoxes(image, options.boxNumber)
+    predictions = recognizeInBoxes(image, boxes)
+
+    if (options.task == 'dataset'):
+        createDataset(image, predictions)
+    elif (options.task == 'cropping'):
+        cropImages(image, boxes, predictions, DEFAULT_OUTPUT_PATH)
+
+
+def generateDescription():
+    return """
+        This tool generates a random boxing pattern for a set of images, running an object recognizing algorithm
+        for each patch corresponding to a box. This boxing division of the image can be used in two tasks:
+        
+        - Creation of datasets of images labeled with object location and boxing.
+        - Creation of image patches divided according to the algorithm classification.
+        
+        This second task is mainly thought as a mean to extend the original object recognition dataset, by choosing, 
+        from the division performed by the algorithm, the false positives and false negatives, that make interesting
+        cases that may improve the algorithm's performance in real data.
+    """
+
+
+def defineParser():
+    parser = argparse.ArgumentParser(description=generateDescription())
+
+    parser.add_argument('task', type=str, help='Task to perform. Available values: dataset or cropping')
+    parser.add_argument('imagePath', type=str, help='Path to the data directory')
+    parser.add_argument('boxNumber', type=int, help='Number of boxes to be generated')
+
+    return parser
+
+def createOutputStructure(outputPath):
+    if not os.path.exists(outputPath):
+        os.mkdir(outputPath)
+
+    positiveFolder = os.path.join(outputPath, FOLDER_POSITIVE)
+
+    if not os.path.exists(positiveFolder):
+        os.mkdir(positiveFolder)
+
+    negativeFolder = os.path.join(outputPath, FOLDER_NEGATIVE)
+
+    if not os.path.exists(negativeFolder):
+        os.mkdir(negativeFolder)
+
+
+def start():
+    args = defineParser().parse_args()
+
+    createOutputStructure(DEFAULT_OUTPUT_PATH)
+
+    images = getImageList(args.imagePath, "*.jpg")
+
+    for image in images:
+        generateBoxingForImage(image, args)
+
+start()
 

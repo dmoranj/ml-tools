@@ -1,4 +1,7 @@
 import os
+import re
+import glob
+import uuid
 
 def createName(image, outputPath, index):
     nameParts = image.split("/")
@@ -18,4 +21,15 @@ def readResolution(resolution):
         return components
     else:
         return None
+
+
+def getSubfolders(path):
+    return [re.sub(r"^/", '', x[0].replace(path, '')) for x in os.walk(path)]
+
+
+def getImageList(folder, extension="*.png"):
+    return glob.glob(os.path.join(folder, extension))
+
+def generateName():
+    return str(uuid.uuid1()) + "_"
 

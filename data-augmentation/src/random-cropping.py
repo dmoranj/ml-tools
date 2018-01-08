@@ -2,13 +2,13 @@
 import matplotlib.image as mpimg
 import numpy as np
 import argparse
-from PIL import Image, ExifTags
 import os
 import glob
 from skimage import transform as trans
 from fileutils import readAspect
 from fileutils import readResolution
 from fileutils import createName
+from imageUtils import createPngImage
 
 DEFAULT_NUM_CROPS=10
 
@@ -113,33 +113,6 @@ def cropImage(image, inputPath, outputPath, cropParams):
             newImage = trans.resize(newImage, newShape)
 
         mpimg.imsave(cropName, newImage)
-
-def createPngImage(image):
-    im = Image.open(image)
-
-    try:
-        for orientation in ExifTags.TAGS.keys():
-            if ExifTags.TAGS[orientation]=='Orientation':
-                break
-
-        exif = dict(im._getexif())
-
-        if exif[orientation] == 3:
-            im = im.rotate(180, expand=True)
-        elif exif[orientation] == 6:
-            im = im.rotate(270, expand=True)
-        elif exif[orientation] == 8:
-            im = im.rotate(90, expand=True)
-
-    except (AttributeError, KeyError, IndexError):
-        print('EXIF information not found for "' + image + '"')
-
-
-    imageName = image.replace("jpg", "png")
-    im.save(imageName, "PNG")
-    im.close()
-
-    return imageName
 
 
 def randomCrop(inputPath, outputPath, cropParams):

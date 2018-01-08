@@ -6,10 +6,10 @@ from skimage.util import crop
 import matplotlib.image as mpimg
 import argparse
 import os
-import re
-import glob
 from fileutils import createName
 from fileutils import readResolution
+from fileutils import getSubfolders
+from fileutils import getImageList
 
 DEFAULT_OUTPUT_PATH='./results/augmented'
 
@@ -43,14 +43,10 @@ def defineParser():
 
     return parser
 
-def getSubfolders(path):
-    return [re.sub(r"^/", '', x[0].replace(path, '')) for x in os.walk(path)]
-
-def getImageList(folder):
-    return glob.glob(os.path.join(folder, "*.png"))
 
 def mirroring(image):
     return np.fliplr(image)
+
 
 def toneModifications(img, rgb):
     modification = [np.full((img.shape[0], img.shape[1]), x) for x in rgb]
@@ -62,9 +58,11 @@ def toneModifications(img, rgb):
 
     return np.clip(img * toneMask, 0, 1)
 
+
 def saveModification(originalImage, outputFolder, key, modifiedFile):
     filename = createName(originalImage, outputFolder, key)
     mpimg.imsave(filename, modifiedFile)
+
 
 def slightRotation(img, degrees):
     height = img.shape[0]
@@ -75,6 +73,7 @@ def slightRotation(img, degrees):
     rotation = crop(rotation, ((margin, margin), (margin, margin), (0, 0)))
     rotation = trans.resize(rotation, (height, width, channels))
     return rotation
+
 
 def applyTransformations(imageList, transformationTypes):
     results = imageList
@@ -89,6 +88,7 @@ def applyTransformations(imageList, transformationTypes):
         results = workingSet
 
     return results
+
 
 def dataAugmentImage(image, outputFolder, augmentOptions):
     print('Augmenting data for ' + image + ' into ' + outputFolder)
@@ -133,6 +133,7 @@ def dataAugmentFolder(originalPath, folder, augmentOptions):
     for image in imageList:
         dataAugmentImage(image, outputFolder, augmentOptions)
 
+
 def createFolderStructure(outputPath, subfolders):
     if not os.path.exists(outputPath):
         os.mkdir(outputPath)
@@ -142,6 +143,7 @@ def createFolderStructure(outputPath, subfolders):
 
         if not os.path.exists(outputFolder):
             os.mkdir(outputFolder)
+
 
 def dataAugment(imagePath, augmentOptions):
     subfolders = getSubfolders(imagePath)
