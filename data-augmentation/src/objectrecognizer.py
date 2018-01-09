@@ -164,7 +164,7 @@ def createModelFn(learningRate, convLayers):
 
 def trainRecognizer(trainingData):
     # Load training and eval data
-    dataset = od.loadImageSet(trainingData["input"], trainingData["testTrainBalance"], 7000)
+    dataset = od.loadImageSet(trainingData["input"],  10000)
 
     train_data = np.asarray(dataset['train']['images'], dtype=np.float32)
     train_labels = np.asarray(dataset['train']['labels'], dtype=np.float32)
