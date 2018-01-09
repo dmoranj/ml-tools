@@ -3,9 +3,11 @@ import re
 import glob
 import uuid
 
+
 def createName(image, outputPath, index):
     nameParts = image.split("/")
     return os.path.join(outputPath, str(index) + "_" + nameParts[-1])
+
 
 def readAspect(aspect):
     if aspect:
@@ -14,6 +16,7 @@ def readAspect(aspect):
         return ratio
     else:
         return None
+
 
 def readResolution(resolution):
     if resolution:
@@ -29,6 +32,7 @@ def getSubfolders(path):
 
 def getImageList(folder, extension="*.png"):
     return glob.glob(os.path.join(folder, extension))
+
 
 def generateName():
     return str(uuid.uuid1()) + "_"

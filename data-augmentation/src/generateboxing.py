@@ -158,6 +158,7 @@ def defineParser():
 
     return parser
 
+
 def createOutputStructure(outputPath):
     if not os.path.exists(outputPath):
         os.mkdir(outputPath)
