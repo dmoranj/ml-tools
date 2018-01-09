@@ -3,6 +3,7 @@ import os
 import shutil
 from fileutils import getSubfolders
 import glob
+import numpy as np
 
 DEFAULT_OUTPUT_PATH = "./results/datasets"
 
@@ -65,6 +66,7 @@ def divideImagesByRatios(dataset, ratios):
         rows = len(subfolderData)
         lastIndex = 0
         subfolderResults = []
+        np.random.shuffle(subfolderData)
 
         for ratio in ratios:
             nextIndex = int(min(lastIndex + ratio*rows, rows))
