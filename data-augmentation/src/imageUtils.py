@@ -1,11 +1,14 @@
 from PIL import Image, ExifTags
 import numpy as np
 
-def transformFromJpg(image):
+def transformFromJpg(image, exif):
     try:
         for orientation in ExifTags.TAGS.keys():
             if ExifTags.TAGS[orientation] == 'Orientation':
                 break
+
+        if exif == None:
+            return image
 
         exif = dict(image._getexif())
 
@@ -41,7 +44,13 @@ def PIL2array(img):
 
 def loadJpegImage(imagePath):
     image = Image.open(imagePath)
-    image = PIL2array(transformFromJpg(image))
+
+    exif = image._getexif()
+
+    if len(image.getbands()) < 3:
+        image = image.convert('RGB')
+
+    image = PIL2array(transformFromJpg(image, exif))
 
     normalized = np.asarray(image[:, :, :3], dtype=np.float32)/255
     return normalized

@@ -10,6 +10,7 @@ from fileutils import createName
 from fileutils import readResolution
 from fileutils import getSubfolders
 from fileutils import getImageList
+from imageUtils import loadJpegImage
 
 DEFAULT_OUTPUT_PATH='./results/augmented'
 
@@ -51,9 +52,10 @@ def mirroring(image):
 def toneModifications(img, rgb):
     modification = [np.full((img.shape[0], img.shape[1]), x) for x in rgb]
 
+    _, _, channels = img.shape
     toneMask = np.zeros(img.shape)
 
-    for i in range(4):
+    for i in range(channels):
         toneMask[:, :, i] = modification[i]
 
     return np.clip(img * toneMask, 0, 1)
@@ -90,9 +92,8 @@ def applyTransformations(imageList, transformationTypes):
     return results
 
 
-def dataAugmentImage(image, outputFolder, augmentOptions):
-    print('Augmenting data for ' + image + ' into ' + outputFolder)
-    img = mpimg.imread(image)
+def dataAugmentImage(img, imageName, outputFolder, augmentOptions):
+    print('Augmenting data for ' + imageName + ' into ' + outputFolder)
     imageList = [
         img,
         mirroring(img)
@@ -121,17 +122,25 @@ def dataAugmentImage(image, outputFolder, augmentOptions):
             newShape = (resolution[1], resolution[0], targetImage.shape[2])
             targetImage = trans.resize(targetImage, newShape)
 
-        saveModification(image, outputFolder, key, targetImage)
+        saveModification(imageName, outputFolder, key, targetImage)
 
 
 def dataAugmentFolder(originalPath, folder, augmentOptions):
     originFolder = os.path.join(originalPath, folder)
     outputFolder = os.path.join(augmentOptions['out'], folder)
 
-    imageList = getImageList(originFolder)
+    pngList = getImageList(originFolder, "*.png")
 
-    for image in imageList:
-        dataAugmentImage(image, outputFolder, augmentOptions)
+    for image in pngList:
+        loadedImage = mpimg.imread(image)
+        dataAugmentImage(loadedImage, image, outputFolder, augmentOptions)
+
+    jpgList = getImageList(originFolder, "*.jpg")
+
+    for image in jpgList:
+        cleanImage = loadJpegImage(image)
+        cleanName = image.replace("jpg", "png")
+        dataAugmentImage(cleanImage, cleanName, outputFolder, augmentOptions)
 
 
 def createFolderStructure(outputPath, subfolders):
