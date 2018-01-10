@@ -127,7 +127,7 @@ def createModelFn(learningRate, convLayers):
             # Input Tensor Shape: [batch_size, 1024]
             # Output Tensor Shape: [batch_size, 2]
             rawLogits = tf.layers.dense(inputs=dropout, units=2, activation=tf.nn.sigmoid)
-            logits = tf.add(rawLogits, 1e-8)
+            logits = tf.add(rawLogits, 1e-10)
 
         predictions = {
             "classes": tf.argmax(input=logits, axis=1),
@@ -164,7 +164,7 @@ def createModelFn(learningRate, convLayers):
 
 def trainRecognizer(trainingData):
     # Load training and eval data
-    dataset = od.loadImageSet(trainingData["input"],  10000)
+    dataset = od.loadImageSet(trainingData["input"],  15000)
 
     train_data = np.asarray(dataset['train']['images'], dtype=np.float32)
     train_labels = np.asarray(dataset['train']['labels'], dtype=np.float32)
@@ -178,7 +178,7 @@ def trainRecognizer(trainingData):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 64], [3, 128], [3, 256]]),
+        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 128], [3, 256]]),
         model_dir=trainingData['output'])
 
     # Set up logging for predictions
@@ -203,7 +203,7 @@ def trainRecognizer(trainingData):
     saver_hook = tf.train.CheckpointSaverHook(
         trainingData['output'],
         listeners=[listener],
-        save_steps=1000)
+        save_steps=500)
 
 
     # Train the model

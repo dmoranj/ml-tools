@@ -41,7 +41,7 @@ def generateObservations(outputFolder, positiveFolder, negativeFolder, maxResult
 
     imageDf = pd.DataFrame(data=imageList, columns=['images', 'labels'])
 
-    return imageDf
+    return imageDf.sample(frac=1)
 
 
 def loadImageSet(inputFolder, maxResults = 7000):
