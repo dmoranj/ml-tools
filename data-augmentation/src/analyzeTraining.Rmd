@@ -12,14 +12,14 @@ library(ggplot2)
 
 source("analyzeTraining.R")
 
-trainResults <- loadResults("./results", "object_convnet1", "trainingData.csv")
+trainResults <- loadResults("./results", "tentative_convnet-6", "trainingData.csv")
 ```
 
 ## Results summary
 
 ```{r, echo=FALSE}
 trainResults %>%
-  group_by(minibatch, alpha) %>%
+  group_by(id, folder, minibatch, alpha, dropout, l2) %>%
   summarise(testLoss=min(test_loss),
             testAcc=max(test_accuracy),
             trainLoss=min(train_loss),
@@ -28,18 +28,25 @@ trainResults %>%
   arrange(desc(testAcc), trainAcc)
 ``` 
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=10, fig.height = 10, fig.width=12, fig.height = 10}
 trainResults %>%
-  filter(minibatch==50, alpha==5e-03) %>%
-  select(iteration, test_accuracy, train_accuracy) %>%
-  gather(metric, value, -iteration) %>%
+  select(id, iteration, test_accuracy, train_accuracy) %>%
+  gather(metric, value, -iteration, -id) %>%
   ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_line()
+    geom_line() +
+    facet_wrap(~ id)
 
-trainResults %>%
-  filter(minibatch==50, alpha==5e-03) %>%
-  select(iteration, test_loss, train_loss) %>%
-  gather(metric, value, -iteration) %>%
-  ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_line()
 ```
+
+```{r, echo=FALSE, fig.width=10, fig.height = 10}
+trainResults %>% 
+  select(id, iteration, test_loss, train_loss) %>%
+  gather(metric, value, -iteration, -id) %>%
+  ggplot(aes(x=iteration, y=value, color=metric)) +
+    geom_smooth() +
+    facet_grid(id ~ .)
+```
+
+
+
+

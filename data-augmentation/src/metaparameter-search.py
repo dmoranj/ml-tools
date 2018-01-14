@@ -1,29 +1,48 @@
 #!/usr/bin/env python
 
 import objectrecognizer as obrec
+import numpy as np
 
 DEFAULT_ARGS = {
      "input": './results/augmented',
-     "output": '/tmp/object_convnet5L',
-     "testTrainBalance": 0.85,
-     "iterations": 20000,
+     "output": './results/tentative_convnet',
+     "iterations": 15000,
 }
 
-def generateArgs(learning, minibatch, index1, index2):
+globalId = 11
+
+def generateArgs(learning, minibatch, dropout, l2):
+    global globalId
+
     args = DEFAULT_ARGS.copy()
 
     args['minibatch'] = minibatch
     args['learning'] = learning
-    args['output'] = args['output'] + str(index1) + '_' + str(index2)
+    args['L2'] = l2
+    args['dropout'] = dropout
+    args['output'] = args['output'] + '-' + str(globalId)
+
+    globalId += 1
 
     return args
 
-def executeExperiments(learningValues, minibatchValues):
-    for i, learning in enumerate(learningValues):
-        for j, minibatch in enumerate(minibatchValues):
-            print('\n\nTraining for learning rate {} and minibatch {}\n'.format(learning, minibatch))
-            args = generateArgs(learning, minibatch, i, j)
-            obrec.trainRecognizer(args)
+def executeExperiments(experimentValues):
+    for experiment in experimentValues:
+        print('\n\nTraining for learning rate {} minibatch {} dropout {} and L2 {}\n'.format(
+            experiment[0], experiment[1], experiment[2], experiment[3]))
+        args = generateArgs(experiment[0], experiment[1], experiment[2], experiment[3])
+        obrec.trainRecognizer(args)
 
 
-executeExperiments([7e-3, 5e-3, 2e-3], [20, 35, 50])
+def generateValues(n, avg, var,  minimum=1e-4, maximum=0.1, typeFunction = float):
+    rawValues = np.random.normal(float(avg), float(var), n)
+    values = np.maximum(np.minimum(rawValues, maximum), minimum)
+    return map(typeFunction, values)
+
+
+executeExperiments(list(zip(
+    generateValues(5, 0.002, 0.002),
+    generateValues(5, 120, 20, 50, 200, int),
+    generateValues(5, 0.3, 0.2, 0.1, 0.5),
+    generateValues(5, 0.2, 0.15, 0.1, 0.5)
+)))

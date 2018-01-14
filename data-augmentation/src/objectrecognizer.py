@@ -11,6 +11,7 @@ from tensorflow.python.training.basic_session_run_hooks import CheckpointSaverLi
 tf.logging.set_verbosity(tf.logging.INFO)
 
 INPUT_SHAPE=[-1, 128, 96, 3]
+L2_REGULARIZATION=0.2
 
 def evalClassifier(object_classifier, eval_data, eval_labels):
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -52,6 +53,7 @@ class CSVSaverListerner(CheckpointSaverListener):
 
     def saveToCSV(self, values):
         record = str(self.data['minibatch']) + ', ' + str(self.data['learning']) + ', ' + str(values['step']) + ', ' \
+                 + str(self.data['dropout']) + ', ' + str(self.data['L2']) + ', ' \
                  + str(values['lossTest']) + ', ' + str(values['accuracyTest']) + ', ' \
                  + str(values['lossTrain']) + ', ' + str(values['accuracyTrain']) + '\n'
 
@@ -75,27 +77,32 @@ class CSVSaverListerner(CheckpointSaverListener):
     def end(self, session, global_step_value):
         self.f.close()
 
-def conv_layer(name, input_layer, kernel, filters):
+def conv_layer(name, input_layer, kernel, filters, l2):
     with tf.name_scope(name):
         conv = tf.layers.conv2d(
             inputs=input_layer,
             filters=filters,
             kernel_size=kernel,
             padding="same",
-            activation=tf.nn.relu)
+            activation=tf.nn.relu,
+            kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2)
+        )
+
 
         convSecond = tf.layers.conv2d(
             inputs=conv,
             filters=filters,
             kernel_size=kernel,
             padding="same",
-            activation=tf.nn.relu)
+            activation=tf.nn.relu,
+            kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2)
+        )
 
         pool = tf.layers.max_pooling2d(inputs=convSecond, pool_size=[2, 2], strides=2)
 
     return pool
 
-def createModelFn(learningRate, convLayers):
+def createModelFn(learningRate, convLayers, dropout, l2):
     def cnn_model_fn(features, labels, mode):
 
         _, rows, columns, channels = INPUT_SHAPE
@@ -105,7 +112,7 @@ def createModelFn(learningRate, convLayers):
 
         for index, kernel in enumerate(convLayers):
             filterSize, filterNumber = kernel
-            currentLayer = conv_layer("Conv" + str(index + 1), layers[index], [filterSize, filterSize], filterNumber)
+            currentLayer = conv_layer("Conv" + str(index + 1), layers[index], [filterSize, filterSize], filterNumber, l2)
             layers.append(currentLayer)
 
 
@@ -117,16 +124,20 @@ def createModelFn(learningRate, convLayers):
             # #1 Dense layer
             # Input Tensor Shape: [batch_size, 12288]
             # Output Tensor Shape: [batch_size, 1024]
-            dense1 = tf.layers.dense(inputs=pool_flat, units=1024, activation=tf.nn.relu)
+            dropout1 = tf.layers.dropout( inputs=pool_flat, rate=dropout, training=mode == tf.estimator.ModeKeys.TRAIN)
+
+            dense1 = tf.layers.dense(inputs=dropout1, units=1024, activation=tf.nn.relu,
+                                     kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2))
 
             # Add dropout
-            dropout = tf.layers.dropout(
-                inputs=dense1, rate=0.5, training=mode == tf.estimator.ModeKeys.TRAIN)
+            dropout2 = tf.layers.dropout( inputs=dense1, rate=dropout, training=mode == tf.estimator.ModeKeys.TRAIN)
 
             # Logits layer
             # Input Tensor Shape: [batch_size, 1024]
             # Output Tensor Shape: [batch_size, 2]
-            rawLogits = tf.layers.dense(inputs=dropout, units=2, activation=tf.nn.sigmoid)
+            rawLogits = tf.layers.dense(inputs=dropout2, units=2, activation=tf.nn.sigmoid,
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2))
+
             logits = tf.add(rawLogits, 1e-10)
 
         predictions = {
@@ -142,6 +153,8 @@ def createModelFn(learningRate, convLayers):
         # Calculate Loss (for both TRAIN and EVAL modes)
         onehot_labels = tf.concat([1- labels, labels], 1)
         loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=onehot_labels), name="reduced_loss")
+        l2_loss = tf.losses.get_regularization_loss()
+        loss += l2_loss
 
         tf.summary.scalar("loss", loss)
 
@@ -178,7 +191,8 @@ def trainRecognizer(trainingData):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 128], [3, 256]]),
+        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 128], [3, 256]],
+                               trainingData['dropout'], trainingData['L2']),
         model_dir=trainingData['output'])
 
     # Set up logging for predictions
@@ -242,12 +256,13 @@ def trainRecognizer(trainingData):
 
 
 def parseArguments(args):
-    if (len(args) != 7):
+    if (len(args) != 8):
         print("Wrong number of parameters. Defaulting to internal values.")
         return {
             "input": './results/augmented',
             "output": '/tmp/object_convnet1',
-            "testTrainBalance": 0.85,
+            "L2": 0.1,
+            "dropout": 0.5,
             "iterations": 1000,
             "minibatch": 100,
             "learning": 1e-3
@@ -256,10 +271,11 @@ def parseArguments(args):
         return {
             "input": args[1],
             "output": args[2],
-            "testTrainBalance": float(args[3]),
-            "iterations": float(args[4]),
-            "minibatch": int(args[5]),
-            "learning": float(args[6])
+            "L2": float(args[3]),
+            "dropout": float(args[4]),
+            "iterations": float(args[5]),
+            "minibatch": int(args[6]),
+            "learning": float(args[7])
         }
 
 def main(argv):
