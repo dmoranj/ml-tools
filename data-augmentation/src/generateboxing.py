@@ -13,25 +13,23 @@ from fileutils import generateName
 import os
 from imageUtils import loadJpegImage
 
-MODEL_ID='1515356249'
-INPUTMODEL='./results/object_convnet1/' + MODEL_ID
 DEFAULT_OUTPUT_PATH='./results/selection'
 
-AVG_WIDTH=0.2
-VAR_WIDTH=0.1
-VAR_POSITION=0.3
+AVG_WIDTH=0.3
+VAR_WIDTH=0.2
+VAR_POSITION=0.4
 ASPECT_RATIO='5:6'
-TOLERANCE=0.73
-MIN_WIDTH=0.05
+TOLERANCE=0.50
+MIN_WIDTH=0.02
 INPUT_SHAPE=(128, 96, 3)
 
 FOLDER_POSITIVE='positive'
 FOLDER_NEGATIVE='negative'
 
 
-def predictImg(inputData):
+def predictImg(inputData, model):
     with tf.Session(graph=tf.Graph()) as sess:
-        _ = tf.saved_model.loader.load(sess, ['serve'], INPUTMODEL)
+        _ = tf.saved_model.loader.load(sess, ['serve'], model)
         output = tf.get_default_graph().get_tensor_by_name('softmax_tensor:0')
         preds = sess.run(output, feed_dict={"input_tensors:0": inputData})
 
@@ -90,12 +88,12 @@ def getSubImage(image, box):
     return subimage
 
 
-def recognizeInBoxes(image, boxes):
+def recognizeInBoxes(image, boxes, model):
     predictions = []
 
     for i in range(0, len(boxes)):
         subimage = getSubImage(image, boxes[i])
-        predictions.append(predictImg(subimage))
+        predictions.append(predictImg(subimage, model))
 
     return predictions
 
@@ -122,17 +120,44 @@ def cropImages(image, boxes, predictions, outputFolder):
         mpimg.imsave(imagePath, subimage)
 
 
+def highlight(image, boxes, predictions, outputFolder):
+    imageShape = image.shape
+    mask = np.zeros(imageShape)
+
+    for i in range(0, len(boxes)):
+        xi = int(boxes[i]['x'] - boxes[i]['width']/2)
+        xf = int(boxes[i]['x'] + boxes[i]['width']/2)
+        yi = int(boxes[i]['y'] - boxes[i]['height']/2)
+        yf = int(boxes[i]['y'] + boxes[i]['height']/2)
+
+        if predictions[i] > TOLERANCE:
+            mask[yi:yf, xi:xf, :] = mask[yi:yf, xi:xf, :] + 1
+        else:
+            mask[yi:yf, xi:xf, :] = mask[yi:yf, xi:xf, :] - 2
+
+
+    minimumValue = np.amin(mask)
+    maximumValue = np.amax(mask)
+    mask = (mask - minimumValue)/(maximumValue - minimumValue)
+
+    imageName = generateName()
+    imagePath = os.path.join(outputFolder, imageName + ".png")
+    mpimg.imsave(imagePath, mask)
+
+
 def generateBoxingForImage(imagePath, options):
     image = loadJpegImage(imagePath)
 
     print('Shape of the image: ' + str(image.shape))
     boxes = createBoxes(image, options.boxNumber)
-    predictions = recognizeInBoxes(image, boxes)
+    predictions = recognizeInBoxes(image, boxes, options.model)
 
     if (options.task == 'dataset'):
         createDataset(image, predictions)
     elif (options.task == 'cropping'):
         cropImages(image, boxes, predictions, DEFAULT_OUTPUT_PATH)
+    elif (options.task == 'highlighting'):
+        highlight(image, boxes, predictions, DEFAULT_OUTPUT_PATH)
 
 
 def generateDescription():
@@ -142,6 +167,7 @@ def generateDescription():
         
         - Creation of datasets of images labeled with object location and boxing.
         - Creation of image patches divided according to the algorithm classification.
+        - Highlight masks for the selected objects, based on box superposition
         
         This second task is mainly thought as a mean to extend the original object recognition dataset, by choosing, 
         from the division performed by the algorithm, the false positives and false negatives, that make interesting
@@ -155,6 +181,7 @@ def defineParser():
     parser.add_argument('task', type=str, help='Task to perform. Available values: dataset or cropping')
     parser.add_argument('imagePath', type=str, help='Path to the data directory')
     parser.add_argument('boxNumber', type=int, help='Number of boxes to be generated')
+    parser.add_argument('model', type=str, help='Path to the directory containing the model to load')
 
     return parser
 
