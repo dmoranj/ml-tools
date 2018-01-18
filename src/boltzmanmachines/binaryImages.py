@@ -1,6 +1,6 @@
 import numpy as np
 
-def loadImage(image):
+def getBinaryImage(image):
     intImage = (image*255).astype(np.uint8)
     representation = np.unpackbits(intImage)
     return representation
