@@ -77,28 +77,21 @@ class CSVSaverListerner(CheckpointSaverListener):
     def end(self, session, global_step_value):
         self.f.close()
 
-def conv_layer(name, input_layer, kernel, filters, l2):
+def conv_layer(name, input_layer, kernel, filters, l2, convLayers):
     with tf.name_scope(name):
-        conv = tf.layers.conv2d(
-            inputs=input_layer,
-            filters=filters,
-            kernel_size=kernel,
-            padding="same",
-            activation=tf.nn.relu,
-            kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2)
-        )
+        currentValue = input_layer
 
+        for i in range(0, convLayers):
+            currentValue = tf.layers.conv2d(
+                inputs=currentValue,
+                filters=filters,
+                kernel_size=kernel,
+                padding="same",
+                activation=tf.nn.relu,
+                kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2)
+            )
 
-        convSecond = tf.layers.conv2d(
-            inputs=conv,
-            filters=filters,
-            kernel_size=kernel,
-            padding="same",
-            activation=tf.nn.relu,
-            kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2)
-        )
-
-        pool = tf.layers.max_pooling2d(inputs=convSecond, pool_size=[2, 2], strides=2)
+        pool = tf.layers.max_pooling2d(inputs=currentValue, pool_size=[2, 2], strides=2)
 
     return pool
 
@@ -111,8 +104,8 @@ def createModelFn(learningRate, convLayers, dropout, l2):
         layers = [tf.reshape(features["x"], INPUT_SHAPE)]
 
         for index, kernel in enumerate(convLayers):
-            filterSize, filterNumber = kernel
-            currentLayer = conv_layer("Conv" + str(index + 1), layers[index], [filterSize, filterSize], filterNumber, l2)
+            filterSize, filterNumber, convNumber = kernel
+            currentLayer = conv_layer("Conv" + str(index + 1), layers[index], [filterSize, filterSize], filterNumber, l2, convNumber)
             layers.append(currentLayer)
 
 
@@ -135,7 +128,7 @@ def createModelFn(learningRate, convLayers, dropout, l2):
             # Logits layer
             # Input Tensor Shape: [batch_size, 1024]
             # Output Tensor Shape: [batch_size, 2]
-            rawLogits = tf.layers.dense(inputs=dropout2, units=2, activation=tf.nn.sigmoid,
+            rawLogits = tf.layers.dense(inputs=dropout2, units=2, activation=tf.nn.relu,
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=l2))
 
             logits = tf.add(rawLogits, 1e-10)
@@ -191,7 +184,7 @@ def trainRecognizer(trainingData):
 
     # Create the Estimator
     object_classifier = tf.estimator.Estimator(
-        model_fn=createModelFn(trainingData['learning'], [[5, 64], [3, 128], [3, 256]],
+        model_fn=createModelFn(trainingData['learning'], [[5, 64, 2], [3, 128, 3], [3, 128, 3], [3, 256, 3]],
                                trainingData['dropout'], trainingData['L2']),
         model_dir=trainingData['output'])
 

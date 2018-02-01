@@ -15,12 +15,12 @@ from imageUtils import loadJpegImage
 
 DEFAULT_OUTPUT_PATH='./results/selection'
 
-AVG_WIDTH=0.3
-VAR_WIDTH=0.2
-VAR_POSITION=0.4
+AVG_WIDTH=0.1
+VAR_WIDTH=0.1
+VAR_POSITION=0.5
 ASPECT_RATIO='5:6'
-TOLERANCE=0.50
-MIN_WIDTH=0.02
+TOLERANCE=0.7
+MIN_WIDTH=0.05
 INPUT_SHAPE=(128, 96, 3)
 
 FOLDER_POSITIVE='positive'
@@ -57,8 +57,10 @@ def createBoxes(image, n):
 
     boxes = []
     for i in range(0, n):
+        minImageWidth = min(width*MIN_WIDTH, INPUT_SHAPE[1]*0.5)
+
         box = {
-            'width': int(max(np.random.normal(AVG_WIDTH*width, VAR_WIDTH*width), width*MIN_WIDTH))
+            'width': int(max(np.random.normal(AVG_WIDTH*width, VAR_WIDTH*width), minImageWidth))
         }
 
         box['height'] = int(box['width']*readAspect(ASPECT_RATIO))
@@ -130,19 +132,29 @@ def highlight(image, boxes, predictions, outputFolder):
         yi = int(boxes[i]['y'] - boxes[i]['height']/2)
         yf = int(boxes[i]['y'] + boxes[i]['height']/2)
 
+        xiC = xi + int(boxes[i]['width']/4)
+        xfC = xf - int(boxes[i]['width']/4)
+        yiC = yi + int(boxes[i]['height']/4)
+        yfC = yf - int(boxes[i]['height']/4)
+
         if predictions[i] > TOLERANCE:
             mask[yi:yf, xi:xf, :] = mask[yi:yf, xi:xf, :] + 1
+            mask[yiC:yfC, xiC:xfC, :] = mask[yiC:yfC, xiC:xfC, :] + 1
         else:
-            mask[yi:yf, xi:xf, :] = mask[yi:yf, xi:xf, :] - 2
+            mask[yi:yf, xi:xf, :] = mask[yi:yf, xi:xf, :] - 1
+            mask[yiC:yfC, xiC:xfC, :] = mask[yiC:yfC, xiC:xfC, :] - 1
 
 
     minimumValue = np.amin(mask)
     maximumValue = np.amax(mask)
     mask = (mask - minimumValue)/(maximumValue - minimumValue)
+    minValueMask = np.greater(mask, 0.6).astype(float)
+
+    mask = mask*minValueMask
 
     imageName = generateName()
     imagePath = os.path.join(outputFolder, imageName + ".png")
-    mpimg.imsave(imagePath, mask)
+    mpimg.imsave(imagePath, image*mask)
 
 
 def generateBoxingForImage(imagePath, options):

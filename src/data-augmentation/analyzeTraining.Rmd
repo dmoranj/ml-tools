@@ -12,7 +12,7 @@ library(ggplot2)
 
 source("analyzeTraining.R")
 
-trainResults <- loadResults("./results", "tentative_convnet-6", "trainingData.csv")
+trainResults <- loadResults("./results", "newarchtrial", "trainingData.csv")
 ```
 
 ## Results summary
@@ -28,23 +28,22 @@ trainResults %>%
   arrange(desc(testAcc), trainAcc)
 ``` 
 
-```{r, echo=FALSE, fig.width=10, fig.height = 10, fig.width=12, fig.height = 10}
+```{r, echo=FALSE, fig.width=10, fig.height = 10, fig.width=12, fig.height = 6}
 trainResults %>%
   select(id, iteration, test_accuracy, train_accuracy) %>%
+  filter(iteration > 3000) %>%
   gather(metric, value, -iteration, -id) %>%
   ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_line() +
-    facet_wrap(~ id)
-
+    geom_smooth()
 ```
 
-```{r, echo=FALSE, fig.width=10, fig.height = 10}
+```{r, echo=FALSE, fig.width=10, fig.height =6}
 trainResults %>% 
   select(id, iteration, test_loss, train_loss) %>%
+  filter(iteration > 3000) %>%
   gather(metric, value, -iteration, -id) %>%
   ggplot(aes(x=iteration, y=value, color=metric)) +
-    geom_smooth() +
-    facet_grid(id ~ .)
+    geom_smooth()
 ```
 
 
