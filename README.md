@@ -20,12 +20,13 @@ default directory structure, that contains the following subfolders (the default
 root folder is `./results` under the tool execution path):
 
 * `./candidates`: this folder will hold all the image crops obtained from the original images
-* `./augmented`:
+* `./augmented`: this folder will typically hold the sets of images that resulted from the data-augmentation process.
 * `./selection`:
 * `./data`:
 
 
-The following sections expand the information about each one of the tools.
+The following sections expand the information about each one of the tools. Command customizing options can be found 
+by executing each script with the `--help` option. 
 
 ### Random cropping (random-cropping.py)
 
@@ -41,11 +42,28 @@ The cropping tool will generate an output subfolder "/candidates" containing all
 If the --aspect option is used, the height parameter will be ignored, and the frame height will be adapted
 to the calculated width of the image.
 
-Command customizing options can be found by executing the script with the `--help` option. 
-
 
 ### Data augmentation (data-augmentation.py)
 
+This tool performs data augmentation on all the images in the provided dataset folder. The data augmentation 
+techniques used are the following (the number in parenthesis indicates how many times the transformation is
+randomly applied):
+        
+* Horizontal image mirroring (1) 
+* Slight rotations (2)
+* Tone modifications (5)
+
+The modifications are applied in a cascade-style (i.e.: each type of modification is applied to each of the
+images that resulted from the previous one) so the total number of new images per original image is 20. The
+set of transformations can be easily edited in the script by editing the `rotations` and `tones` arrays in the
+`dataAugmentImage()` function.
+
+The data-agumentation process will perform recursively in the provided directory, and the generated results
+folder will replicate the structure of the original (i.e.: if the original folder contains a dataset divided
+into *training*, *testing* and *cv* folders, all of them would be separatedly augmented, and the structure preserved 
+in the target folder).
+
+All the unmodified images will be also copied to the destination location.
 
 ### Generate boxing (generate-boxing.py)
 
