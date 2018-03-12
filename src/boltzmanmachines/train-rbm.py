@@ -39,7 +39,7 @@ def weightUpdateModel(weight, dW):
 
 
 def createVariables(nh, nv):
-    visible = tf.placeholder(tf.float16, [nv, 1])
+    visible = tf.placeholder(tf.float16, [nv, 1], name="visible")
     weights = tf.Variable(tf.random_uniform([nv, nh], dtype=tf.float16), dtype=tf.float16, name="weights")
     reconstruction = tf.Variable(tf.zeros(visible.shape, dtype=tf.float16), dtype=tf.float16, name="reconstruction")
     hidden = tf.Variable(tf.zeros((nh, 1), dtype=tf.float16), dtype=tf.float16)
