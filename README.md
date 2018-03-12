@@ -67,6 +67,34 @@ All the unmodified images will be also copied to the destination location.
 
 ### Generate boxing (generate-boxing.py)
 
+This tool generates a random boxing pattern for a set of images, running an object recognizing algorithm
+for each patch corresponding to a box. The object recognition algorithm is supposed to have been trained with
+this same toolset `objectrecognizer.py` script (the reason for that is that input and output tensors for prediction 
+are retrieved by name; a small change in the script should make it usable with different models). 
+
+The boxing division of the image can be used in two tasks:
+        
+* Creation of datasets of images labeled with object location and boxing.
+* Creation of image patches divided according to the algorithm classification.
+* Highlight masks for the selected objects, based on box superposition
+        
+The second task is mainly thought as a mean to extend the original object recognition dataset, by manually choosing, 
+from the division performed by the algorithm, the false positives and false negatives, thus making interesting
+cases that may improve the algorithm's performance in real data.
+
+The highlighting algorithm works by using the generated random boxes to darken or lighting the corresponding image 
+patch, depending on whether the patch corresponded to a positive example or a negative one. The highlighting procedure
+performance depends heavily on:
+
+* the size of the boxes relative to the object to be recognize.
+* the number of iterations the algorithm is executed.
+* and the performance of the classifier itself.
+
+Highlighted images are stored in the `./selection` subfolder.
+
+Dataset boxing creation doesn't currently save the generated boxing, but it displays it overimposed to the shown
+images.
+
 
 ## Boltzmann machines (/boltzmanmachines)
 

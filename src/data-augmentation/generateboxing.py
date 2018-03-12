@@ -200,7 +200,7 @@ def generateDescription():
 def defineParser():
     parser = argparse.ArgumentParser(description=generateDescription())
 
-    parser.add_argument('task', type=str, help='Task to perform. Available values: dataset or cropping')
+    parser.add_argument('task', type=str, help='Task to perform. Available values: dataset, cropping or highlighting')
     parser.add_argument('imagePath', type=str, help='Path to the data directory')
     parser.add_argument('boxNumber', type=int, help='Number of boxes to be generated')
     parser.add_argument('model', type=str, help='Path to the directory containing the model to load')
