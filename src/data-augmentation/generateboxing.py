@@ -15,8 +15,8 @@ from imageUtils import loadJpegImage
 
 DEFAULT_OUTPUT_PATH='./results/selection'
 
-AVG_WIDTH=0.1
-VAR_WIDTH=0.1
+AVG_WIDTH=0.2
+VAR_WIDTH=0.2
 VAR_POSITION=0.5
 ASPECT_RATIO='5:6'
 TOLERANCE=0.7
@@ -65,12 +65,15 @@ def createBoxes(image, n):
 
         box['height'] = int(box['width']*readAspect(ASPECT_RATIO))
 
+        posX = max(np.random.normal(width/2, VAR_POSITION*width), box['width']/2)
+        posY = max(np.random.normal(height/2, VAR_POSITION*height), box['height']/2)
+
         box['x'] = int(min(
-            max(np.random.normal(width/2, VAR_POSITION*width), box['width']/2),
+            posX,
             width - box['width']/2 - 1))
 
         box['y'] = int(min(
-            max(np.random.normal(height/2, VAR_POSITION*height), box['height']/2),
+            posY,
             height - box['height']/2 - 1))
 
         boxes.append(box)
@@ -79,15 +82,22 @@ def createBoxes(image, n):
 
 
 def getSubImage(image, box):
-    xi = int(box['x'] - box['width']/2)
-    xf = int(box['x'] + box['width']/2)
-    yi = int(box['y'] - box['height']/2)
-    yf = int(box['y'] + box['height']/2)
+    height, width, _ = image.shape
+
+    xi = max(int(box['x'] - box['width']/2), 0)
+    xf = min(int(box['x'] + box['width']/2), width)
+    yi = max(int(box['y'] - box['height']/2), 0)
+    yf = min(int(box['y'] + box['height']/2), height)
 
     subimage = image[yi:yf, xi:xf, :]
-    subimage = trans.resize(subimage, INPUT_SHAPE)
 
-    return subimage
+    try:
+        subimage = trans.resize(subimage, INPUT_SHAPE)
+
+        return subimage
+    except:
+        subimage = trans.resize(image, INPUT_SHAPE)
+        return subimage
 
 
 def recognizeInBoxes(image, boxes, model):
@@ -122,7 +132,7 @@ def cropImages(image, boxes, predictions, outputFolder):
         mpimg.imsave(imagePath, subimage)
 
 
-def highlight(image, boxes, predictions, outputFolder):
+def highlight(image, boxes, predictions, outputFolder, sufix = ''):
     imageShape = image.shape
     mask = np.zeros(imageShape)
 
@@ -152,7 +162,7 @@ def highlight(image, boxes, predictions, outputFolder):
 
     mask = mask*minValueMask
 
-    imageName = generateName()
+    imageName = generateName() + sufix
     imagePath = os.path.join(outputFolder, imageName + ".png")
     mpimg.imsave(imagePath, image*mask)
 
@@ -169,7 +179,7 @@ def generateBoxingForImage(imagePath, options):
     elif (options.task == 'cropping'):
         cropImages(image, boxes, predictions, DEFAULT_OUTPUT_PATH)
     elif (options.task == 'highlighting'):
-        highlight(image, boxes, predictions, DEFAULT_OUTPUT_PATH)
+        highlight(image, boxes, predictions, DEFAULT_OUTPUT_PATH, "norm")
 
 
 def generateDescription():
