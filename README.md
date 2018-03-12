@@ -19,10 +19,10 @@ those sections that meet our needs, and augment the cleanead data. It works with
 default directory structure, that contains the following subfolders (the default
 root folder is `./results` under the tool execution path):
 
-* `./candidates`: this folder will hold all the image crops obtained from the original images
-* `./augmented`: this folder will typically hold the sets of images that resulted from the data-augmentation process.
-* `./selection`:
-* `./data`:
+* `./candidates`: holds all the image crops obtained from the original images
+* `./augmented`: holds the sets of images that resulted from the data-augmentation process.
+* `./selection`: this is the destination of the boxings and highlighting from the boxing generation script.
+* `./data`: 
 
 
 The following sections expand the information about each one of the tools. Command customizing options can be found 
@@ -64,6 +64,42 @@ into *training*, *testing* and *cv* folders, all of them would be separatedly au
 in the target folder).
 
 All the unmodified images will be also copied to the destination location.
+
+### Object recognition (objectrecognizer.py and metaparameter-search.py)
+
+These scripts contain an implementation of an object recognizer based on the typical CNN+FC architecture. The object
+recognition script is implemented with the TensorFlow Estimator API, using Adagrad as the optimizer. The arquitechture
+of the network can be configured inside the script, by using a string like the following:
+
+```buildoutcfg
+[[5, 64, 2], [3, 128, 3], [3, 128, 3], [3, 256, 3]]
+```
+
+Each of the subarrays indicates a new Network Layer composed of a number of CNN layers and its correspondent final 
+max pooling layer. The first number in the Network Layer definition indicates the size of the convolution kernel, the 
+second one the number of filters, and the third the number of convolutional layers before the max pooling.  
+
+The `objectrecognizer.py` script receives the following arguments:
+
+* **input**: folder containing the image examples.
+* **output**: folder that will hold the trained model (or the model to continue training).
+* **L2**: L2 regularizer constant [0..1].
+* **dropout**: dropout level [0..1].
+* **iterations**: number of iterations to train for.
+* **minibatch**: minibatch size.
+* **learning**: learning rate.
+
+The Estimator API takes care of automatically saving and restoring training given an input folder. Statistics of the
+training can be found in th `training.csv` file inside the model folder.
+
+The `metaparameter-search.py` script was conceived to aid in searching for the most appropriate metaparameters for the
+object-recognition algorithm. It generates random sets of parameters normally distributed about a given mean, with a
+specified variance, with values limited to a certain interval (function `generateValues()`). The object recognizer
+script is run against all the examples in this loose grid for a certain number of iterations, saving the results
+in the CSV files. R Markdown file `analyzeTraining.Rmd` contains some functions that may help in analyzing the
+results.
+
+
 
 ### Generate boxing (generate-boxing.py)
 
